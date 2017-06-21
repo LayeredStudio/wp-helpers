@@ -1,7 +1,7 @@
 {
     "name": "layered/wp-helpers",
     "description": "Helpers for easier WordPress themes & plugins development",
-    "type": "metapackage",
+    "type": "library",
     "authors": [
         {
             "name": "Andrei Igna",
