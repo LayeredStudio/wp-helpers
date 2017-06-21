@@ -1,0 +1,17 @@
+{
+    "name": "layered/wp-helpers",
+    "description": "Helpers for easier WordPress themes & plugins development",
+    "type": "metapackage",
+    "authors": [
+        {
+            "name": "Andrei Igna",
+            "email": "andrei.igna@layered.studio"
+        }
+    ],
+    "require": {},
+    "autoload": {
+        "psr-4": {
+            "Layered\\": "src/"
+        }
+    }
+}
