@@ -1,10 +1,11 @@
 <?php
 
-namespace Layered;
+namespace Layered\Wp;
 
 class CustomPostType {
 
   public $postType;
+  public $taxonomies = [];
   public $args;
   public static $i18n = 'layered';
 
@@ -17,7 +18,7 @@ class CustomPostType {
     if (!isset($args['labels'])) {
       $args['labels'] = array();
     }
-    $niceName = ucwords($this->postType);
+    $niceName = ucwords(str_replace('-', ' ', $this->postType));
 
     $labels = array_merge([
       'name'                =>  $niceName . 's',
@@ -46,18 +47,21 @@ class CustomPostType {
     return $this;
   }
 
-  function addTaxonomy($taxonomy, $pluralName = null, $args = []) {
+  public function addTaxonomy($taxonomy, $pluralName = null, $args = []) {
 
     if (is_array($pluralName)) {
       $args = $pluralName;
       $pluralName = null;
     }
 
+    $niceName = ucwords(str_replace('-', ' ', $taxonomy));
+
     $taxonomy = $this->postType . '-' . strtolower($taxonomy);
+
     if (!isset( $args['labels'])) {
       $args['labels'] = array();
     }
-    $niceName = ucwords(str_replace('-', ' ', $taxonomy));
+
     if (!$pluralName) {
       $pluralName = isset($args['labels']) && isset($args['labels_name']) ? $args['labels']['name'] : $niceName . 's';
     }
@@ -83,10 +87,13 @@ class CustomPostType {
 
     register_taxonomy($taxonomy, $this->postType, $args);
 
+    $this->taxonomies[$taxonomy] = $args;
+    $this->addColumns($taxonomy);
+
     return $this;
   }
 
-  function addThumbnails($sizes) {
+  public function addThumbnails($sizes) {
     add_theme_support('post-thumbnails');
 
     foreach ($sizes as $size => $options) {
@@ -96,12 +103,106 @@ class CustomPostType {
     return $this;
   }
 
-  function addMetaBox( $title, $fields, $context = 'normal', $priority = 'default' ) {
-      if( function_exists( 'rkm_add_meta_box' ) ) {
-          rkm_add_meta_box( $this->postType, $title, $fields, $context = 'normal', $priority = 'default' );
+  public function addColumns($columns) {
+
+    if (!is_array($columns)) {
+      $columns = [$columns];
+    }
+
+    $newColumns = [];
+
+    // process new columns
+    foreach ($columns as $column) {
+
+      if (is_string($column)) {
+        
+        if ($column == 'author') {
+          $column = [
+            'id'    =>  'author',
+            'name'  =>  __('Author', self::$i18n)
+          ];
+        } elseif (isset($this->taxonomies[$column])) {
+          $column = [
+            'id'        =>  $column,
+            'sortable'  =>  true,
+            'name'      =>  $this->taxonomies[$column]['labels']['name'],
+            'value'     =>  function() use($column) {
+              global $post;
+
+              $terms = get_the_terms($post->ID, $column);
+
+              if (is_wp_error($terms)) {
+                printf('<i>Error: %s</i>', $terms->get_error_message());
+              } elseif ($terms) {
+
+                $terms = array_map(function($term) use($column) {
+
+                  $name = $term->name;
+
+                  if (function_exists('qtranxf_useCurrentLanguageIfNotFoundShowEmpty')) {
+                    $name = qtranxf_useCurrentLanguageIfNotFoundShowEmpty($term->name);
+                  }
+
+                  return $name;
+                }, $terms);
+
+                echo implode(', ', $terms);
+              }
+            }
+          ];
+        } else {
+          $column = [
+            'id'    =>  $column,
+            'name'  =>  $column,
+            'value' =>  function() {
+              printf('<i>%s</i>', __('undefined value', self::$i18n));
+            }
+          ];
+        }
+
       }
 
-      return $this;
+      $newColumns[$column['id']] = $column;
+    }
+
+    add_filter('manage_edit-' . $this->postType . '_columns', function($columns) use($newColumns) {
+
+      foreach ($newColumns as $id => $column) {
+        //$columns[$id] = $column['name'];
+
+        if (!isset($column['position'])) {
+          $column['position'] = -1;
+        } elseif (is_string($column['position'])) {
+          $column['position'] = array_search('date', array_keys($columns));
+        }
+
+        $newCol = [];
+        $newCol[$id] = $column['name'];
+
+        $columns = array_merge(array_slice($columns, 0, $column['position']), $newCol, array_slice($columns, $column['position']));
+
+      }
+
+      return $columns;
+    });
+
+    add_action('manage_' . $this->postType . '_posts_custom_column', function($column) use($newColumns) {
+      global $post;
+
+      if (isset($newColumns[$column]) && isset($newColumns[$column]['value'])) {
+        call_user_func($newColumns[$column]['value']);
+      }
+
+    });
+
+    return $this;
+  }
+
+  function addMetaBox($title, $fields, $context = 'normal', $priority = 'default') {
+
+    new \Layered\Wp\PostMetaBox($this->postType, $title, $fields, $context, $priority);
+
+    return $this;
   }
 
 }
