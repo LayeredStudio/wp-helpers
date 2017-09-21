@@ -1,7 +1,9 @@
 {
     "name": "layered/wp-helpers",
-    "description": "Helpers for easier WordPress themes & plugins development",
+    "description": "Helpers for easier WordPress development",
     "type": "library",
+    "license": "MIT",
+    "keywords": ["wordpress", "wordpress-plugin", "wordpress-theme"],
     "authors": [
         {
             "name": "Andrei Igna",

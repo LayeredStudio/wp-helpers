@@ -2,6 +2,8 @@
 
 require 'vendor/autoload.php';
 
+use Layered\Wp\CustomPostType;
+
 
 Layered\Wp\CustomPostType::$i18n = 'my-theme-or-plugin';
 
