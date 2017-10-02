@@ -38,7 +38,8 @@ class CustomPostType {
       'rewrite'           =>  true,
       'capability_type'   =>  'post',
       'supports'          =>  ['title', 'editor', 'thumbnail', 'excerpt'],
-      'has_archive'       =>  true
+      'has_archive'       =>  true,
+      'show_in_rest'      =>  true
     ], $args);
     $this->args['labels'] = $labels;
 
