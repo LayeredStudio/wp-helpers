@@ -136,7 +136,7 @@ class PostMetaBox {
     <fieldset>
       <legend class="screen-reader-text"><span><?php echo $field['title'] ?></span></legend>
 
-      <?php if (in_array($field['type'], ['text', 'number', 'date'])) : ?>
+      <?php if (in_array($field['type'], ['text', 'number', 'date', 'url', 'time'])) : ?>
         
         <?php if (isset($field['prefix'])) echo $field['prefix'] ?>
         <input id="<?php echo $field['id'] ?>" type="<?php echo $field['type'] ?>" name="<?php echo $field['name'] ?>" placeholder="<?php echo $field['placeholder'] ?: '' ?>" value="<?php echo $field['value'] ?>" class="<?php echo isset($field['class']) ? $field['class'] : 'regular-text' ?>" />
@@ -149,6 +149,20 @@ class PostMetaBox {
             <option <?php selected( $option_key, $field['value'] ) ?> value="<?php echo $option_key ?>"><?php echo $option_value ?></option>
           <?php endforeach ?>
         </select>
+      
+      <?php elseif( 'posts' == $field['type'] ) : ?>
+        
+		<select id="<?php echo $field['id'] ?>" name="<?php echo $field['name'] ?>">
+			<?php
+			$posts = get_posts($field['args']);
+			?>
+
+			<option value="0"><?php _e(' - Select -') ?></option>
+
+			<?php foreach($posts as $post ) : ?>
+				<option <?php selected($post->ID, $field['value']) ?> value="<?php echo $post->ID ?>"><?php echo $post->post_title ?></option>
+			<?php endforeach ?>
+		</select>
       
       <?php elseif( 'upload' == $field['type'] ) : ?>
         
