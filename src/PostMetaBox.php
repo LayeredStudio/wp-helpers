@@ -7,7 +7,7 @@ class PostMetaBox {
   protected static $addedAssets = false;
   protected static $fields = [];
 
-  public function __construct($postType, $title, $fields, $context = 'normal', $priority = 'default') {
+  public function __construct($postType, $title, $fields, $context = 'normal', $priority = 'default', $filter = '__return_true') {
 
 
     self::addAdminAssets();
@@ -31,80 +31,84 @@ class PostMetaBox {
     }, $fields);
 
 
-    add_action('admin_init', function() use($postType, $title, $context, $fields, $priority) {
-      
-      add_meta_box(sanitize_title($title), $title, function() use($fields) {
-        wp_nonce_field( 'rkm_meta_boxes', 'rkm_meta_boxes_nonce' );
-        $cf = get_post_custom();
-        ?>
+    add_action('add_meta_boxes', function() use($postType, $title, $context, $fields, $priority, $filter) {
 
-        <table class="form-table">
-          <tbody>
+      if (call_user_func($filter)) {
+        add_meta_box(sanitize_title($title), $title, function() use($fields) {
+          wp_nonce_field( 'rkm_meta_boxes', 'rkm_meta_boxes_nonce' );
+          $cf = get_post_custom();
+          ?>
 
-            <?php
+          <table class="form-table">
+            <tbody>
 
-            foreach ($fields as $field) {
-              $field['value'] = isset( $cf[$field['id']] ) ? $cf[$field['id']][0] : null;
-              $field['name'] = $field['id'];
+              <?php
 
-              if (isset($field['multiple']) && $field['multiple'] == true) {
-                $field['name'] = $field['id'] . '[]';
-                $field['value'] = maybe_unserialize($field['value']);
+              foreach ($fields as $field) {
+                $field['value'] = isset( $cf[$field['id']] ) ? $cf[$field['id']][0] : null;
+                $field['name'] = $field['id'];
+
+                if (isset($field['multiple']) && $field['multiple'] == true) {
+                  $field['name'] = $field['id'] . '[]';
+                  $field['value'] = maybe_unserialize($field['value']);
+                }
+
+                ?>
+
+                <?php if ($field['type'] === 'line') : ?>
+                  <tr>
+                    <td colspan="2"><hr></td>
+                  </tr>
+                <?php else : ?>
+
+                  <tr class="field-<?php echo $field['id'] ?> field-type-<?php echo $field['type'] ?>">
+                    <th scope="row">
+                      <label for="<?php echo $field['id'] ?>"><?php echo $field['title'] ?></label>
+                    </th>
+                    <td>
+
+                      <?php
+                      if (isset($field['multiple']) && $field['multiple'] == true && $field['value'] && is_array($field['value'])) {
+                        foreach ($field['value'] as $val) {
+                          $this->renderField(array_merge($field, ['value' => $val]));
+                        }
+                      }
+                      ?>
+
+
+                      <?php $this->renderField($field) ?>
+
+
+                      <?php if (isset($field['multiple']) && $field['multiple'] == true) : ?>
+
+                        <button class="button button-primary button-small js-layered-clone-field"><?php printf(__('Add %s'), $field['title']) ?></button>
+
+                      <?php endif ?>
+
+                    </td>
+                  </tr>
+
+                <?php endif ?>
+
+                <?php
               }
 
               ?>
 
-              <?php if ($field['type'] === 'line') : ?>
-                <tr>
-                  <td colspan="2"><hr></td>
-                </tr>
-              <?php else : ?>
+            </tbody>
+          </table>
 
-                <tr class="field-<?php echo $field['id'] ?> field-type-<?php echo $field['type'] ?>">
-                  <th scope="row">
-                    <label for="<?php echo $field['id'] ?>"><?php echo $field['title'] ?></label>
-                  </th>
-                  <td>
+          <?php
 
-                    <?php
-                    if (isset($field['multiple']) && $field['multiple'] == true && $field['value'] && is_array($field['value'])) {
-                      foreach ($field['value'] as $val) {
-                        $this->renderField(array_merge($field, ['value' => $val]));
-                      }
-                    }
-                    ?>
+        }, $postType, $context, $priority );
+      }
 
-
-                    <?php $this->renderField($field) ?>
-
-
-                    <?php if (isset($field['multiple']) && $field['multiple'] == true) : ?>
-
-                      <button class="button button-primary button-small js-layered-clone-field"><?php printf(__('Add %s'), $field['title']) ?></button>
-
-                    <?php endif ?>
-
-                  </td>
-                </tr>
-
-              <?php endif ?>
-
-              <?php
-            }
-
-            ?>
-
-          </tbody>
-        </table>
-
-        <?php
-
-      }, $postType, $context, $priority );
     } );
 
-    add_action( 'save_post', function() use( $postType, $fields ) {
+    add_action( 'save_post', function() use($postType, $fields, $filter) {
       global $post;
 
+      if (!call_user_func($filter)) return;
       if( defined('DOING_AUTOSAVE') && DOING_AUTOSAVE ) return;
       if( ! isset( $_POST['rkm_meta_boxes_nonce'] ) || ! wp_verify_nonce( $_POST['rkm_meta_boxes_nonce'], 'rkm_meta_boxes' ) ) return;
 
