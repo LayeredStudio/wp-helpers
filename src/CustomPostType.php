@@ -144,7 +144,7 @@ class CustomPostType {
                     $name = qtranxf_useCurrentLanguageIfNotFoundShowEmpty($term->name);
                   }
 
-                  return $name;
+                  return '<a href="' . admin_url('edit.php?post_type=' . $this->postType . '&' . $column . '=' . $term->slug) . '">' . $name . '</a>';
                 }, $terms);
 
                 echo implode(', ', $terms);
