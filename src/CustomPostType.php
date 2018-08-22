@@ -206,4 +206,20 @@ class CustomPostType {
     return $this;
   }
 
+	function addMetaFields(array $metaFields) {
+
+		foreach ($metaFields as $metaKey => $metaField) {
+			$this->addMetaField($metaKey, $metaField);
+		}
+
+		return $this;
+	}
+
+	function addMetaField(string $metaKey, array $args) {
+
+		MetaFields::instance()->postMeta($this->postType, $metaKey, $args);
+
+		return $this;
+	}
+
 }
