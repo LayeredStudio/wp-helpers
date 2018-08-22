@@ -4,51 +4,50 @@ namespace Layered\Wp;
 
 class CustomPostType {
 
-  public $postType;
-  public $taxonomies = [];
-  public $args;
-  public static $i18n = 'layered';
+	public $postType;
+	public $taxonomies = [];
+	public $args;
+	public static $i18n = 'layered';
 
-  public static function add($postType, $args = []) {
-    return new static($postType, $args);
-  }
+	public static function add(string $postType, array $args = []) {
+		return new static($postType, $args);
+	}
 
-  function __construct($postType, $args = array()) {
-    $this->postType = strtolower($postType);
-    if (!isset($args['labels'])) {
-      $args['labels'] = array();
-    }
-    $niceName = ucwords(str_replace('-', ' ', $this->postType));
+	function __construct(string $postType, array $args = []) {
+		$this->postType = strtolower($postType);
 
-    $labels = array_merge([
-      'name'                =>  $niceName . 's',
-      'singular_name'       =>  $niceName,
-      'add_new_item'        =>  sprintf( __('Add New %s', self::$i18n), $niceName),
-      'edit_item'           =>  sprintf( __('Edit %s', self::$i18n), $niceName),
-      'new_item'            =>  sprintf( __('New %s', self::$i18n), $niceName),
-      'view_item'           =>  sprintf( __('View %s', self::$i18n), $niceName),
-      'search_items'        =>  sprintf( __('Search %ss', self::$i18n), $niceName),
-      'not_found'           =>  sprintf( __('No %ss found', self::$i18n), $niceName),
-      'not_found_in_trash'  =>  sprintf( __('No %ss found in Trash', self::$i18n), $niceName),
-    ], $args['labels']);
+		$args['labels'] = $args['labels'] ?? [];
+		$niceName = ucwords(str_replace('-', ' ', $this->postType));
 
-    $this->args = array_merge([
-      'public'            =>  true,
-      'query_var'         =>  true,
-      'rewrite'           =>  true,
-      'capability_type'   =>  'post',
-      'supports'          =>  ['title', 'editor', 'thumbnail', 'excerpt'],
-      'has_archive'       =>  true,
-      'show_in_rest'      =>  true
-    ], $args);
-    $this->args['labels'] = $labels;
+		$labels = array_merge([
+			'name'                =>  $niceName . 's',
+			'singular_name'       =>  $niceName,
+			'add_new_item'        =>  sprintf( __('Add New %s', self::$i18n), $niceName),
+			'edit_item'           =>  sprintf( __('Edit %s', self::$i18n), $niceName),
+			'new_item'            =>  sprintf( __('New %s', self::$i18n), $niceName),
+			'view_item'           =>  sprintf( __('View %s', self::$i18n), $niceName),
+			'search_items'        =>  sprintf( __('Search %ss', self::$i18n), $niceName),
+			'not_found'           =>  sprintf( __('No %ss found', self::$i18n), $niceName),
+			'not_found_in_trash'  =>  sprintf( __('No %ss found in Trash', self::$i18n), $niceName),
+		], $args['labels']);
 
-    register_post_type($this->postType, $this->args);
+		$this->args = array_merge([
+			'public'            =>  true,
+			'query_var'         =>  true,
+			'rewrite'           =>  true,
+			'capability_type'   =>  'post',
+			'supports'          =>  ['title', 'editor', 'thumbnail', 'excerpt'],
+			'has_archive'       =>  true,
+			'show_in_rest'      =>  true
+		], $args);
+		$this->args['labels'] = $labels;
 
-    return $this;
-  }
+		register_post_type($this->postType, $this->args);
 
-  public function addTaxonomy($taxonomy, $pluralName = null, $args = []) {
+		return $this;
+	}
+
+  public function addTaxonomy(string $taxonomy, string $pluralName = null, array $args = []) {
 
     if (is_array($pluralName)) {
       $args = $pluralName;
@@ -77,7 +76,8 @@ class CustomPostType {
       'edit_item'         =>  sprintf(__('Edit %s', self::$i18n),  $niceName),
       'update_item'       =>  sprintf(__('Update %s', self::$i18n), $niceName),
       'add_new_item'      =>  sprintf(__('Add New %s', self::$i18n), $niceName),
-      'new_item_name'     =>  sprintf(__('New %s Name', self::$i18n), $niceName)
+      'new_item_name'     =>  sprintf(__('New %s Name', self::$i18n), $niceName),
+      'show_in_rest'		=>	true
     ], $args['labels'] );
 
     $args = array_merge([
