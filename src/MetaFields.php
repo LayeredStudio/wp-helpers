@@ -51,7 +51,7 @@ final class MetaFields {
 
 	}
 
-	protected function prepareMetaArgs(string $metaKey, array $args = []) {
+	protected function prepareMetaArgs(string $metaKey, array $args = []): array {
 
 		if (!isset($args['name']) || !strlen($args['name'])) {
 			_doing_it_wrong(__FUNCTION__, sprintf(__('Field "%s" is required when registering a custom meta field', 'layered'), 'name'), null);
@@ -126,7 +126,7 @@ final class MetaFields {
 		$this->metaFields['term'][$taxonomy][$metaKey] = $args;
 	}
 
-	public function addTermColumns(array $columns) {
+	public function addTermColumns(array $columns): array {
 		$taxonomy = get_current_screen()->taxonomy;
 		$metaFields = $this->metaFields['term'][$taxonomy] ?? [];
 
@@ -139,12 +139,12 @@ final class MetaFields {
 		return $columns;
 	}
 
-	public function addTermColumnContent($content, $columnName, $termId) {
+	public function addTermColumnContent($content, $columnName, $termId): string {
 		$taxonomy = get_current_screen()->taxonomy;
 		$metaFields = $this->metaFields['term'][$taxonomy] ?? [];
 
 		foreach ($metaFields as $metaKey => $metaField) {
-			if ($metaField['show_as_column'] && $metaKey == $columnName) {
+			if ($metaField['show_as_column'] && $metaKey === $columnName) {
 				$content = get_term_meta($termId, $columnName, true);
 			}
 		}
