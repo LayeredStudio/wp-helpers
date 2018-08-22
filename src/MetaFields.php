@@ -102,6 +102,8 @@ final class MetaFields {
 			];
 		}
 
+		$args = apply_filters('meta_fields_args', $args, $metaKey);
+
 		return $args;
 	}
 
