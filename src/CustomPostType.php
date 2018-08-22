@@ -76,13 +76,13 @@ class CustomPostType {
       'edit_item'         =>  sprintf(__('Edit %s', self::$i18n),  $niceName),
       'update_item'       =>  sprintf(__('Update %s', self::$i18n), $niceName),
       'add_new_item'      =>  sprintf(__('Add New %s', self::$i18n), $niceName),
-      'new_item_name'     =>  sprintf(__('New %s Name', self::$i18n), $niceName),
-      'show_in_rest'		=>	true
+      'new_item_name'     =>  sprintf(__('New %s Name', self::$i18n), $niceName)
     ], $args['labels'] );
 
     $args = array_merge([
       'public'            =>  $this->args['public'],
-      'hierarchical'      =>  true
+      'hierarchical'      =>  true,
+      'show_in_rest'		=>	true
     ], $args );
     $args['labels'] = $labels;
 
