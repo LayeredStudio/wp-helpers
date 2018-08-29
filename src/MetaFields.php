@@ -565,3 +565,7 @@ final class MetaFields {
 	}
 
 }
+
+function metaFields() {
+	return MetaFields::instance();
+}
