@@ -158,7 +158,7 @@ final class MetaFields {
 
 		foreach ($metaFields as $metaKey => $metaField) {
 			if ($metaField['show_as_column'] && $metaKey === $columnName) {
-				$content = get_term_meta($termId, $columnName, true);
+				$content = $this->getTermMetaValue($termId, $columnName);
 			}
 		}
 
@@ -536,6 +536,32 @@ final class MetaFields {
 		});
 		</script>
 		<?php
+	}
+
+	public function getPostMetaValue(int $postId, string $metaKey) {
+		$post = get_post($postId);
+		$metaField = $this->metaFields['post'][$post->post_type][$metaKey] ?? [];
+		return $this->renderValue($metaField, get_post_meta($postId, $metaKey, $metaField['single']));
+	}
+
+	public function getTermMetaValue(int $termId, string $metaKey) {
+		$term = get_term($termId);
+		$metaField = $this->metaFields['term'][$term->taxonomy][$metaKey] ?? [];
+		return $this->renderValue($metaField, get_term_meta($termId, $metaKey, $metaField['single']));
+	}
+
+	public function getUserMetaValue(int $userId, string $metaKey) {
+		$metaField = $this->metaFields['user'][$metaKey] ?? [];
+		return $this->renderValue($metaField, get_user_meta($userId, $metaKey, $metaField['single']));
+	}
+
+	public function renderValue(array $metaField, $value) {
+
+		if ($metaField['advancedType'] === 'attachment') {
+			$value = wp_get_attachment_image($value, [75, 75]);
+		}
+
+		return $value;
 	}
 
 }
