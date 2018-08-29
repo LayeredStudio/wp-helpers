@@ -141,7 +141,11 @@ final class MetaFields {
 
 		foreach ($metaFields as $metaKey => $metaField) {
 			if ($metaField['show_as_column']) {
-				$columns[$metaKey] = $metaField['name'];
+				$position = is_int($metaField['show_as_column']) ? $metaField['show_as_column'] : -1;
+				$newCol = [];
+				$newCol[$metaKey] = $metaField['name'];
+
+				$columns = array_merge(array_slice($columns, 0, $position), $newCol, array_slice($columns, $position));
 			}
 		}
 
