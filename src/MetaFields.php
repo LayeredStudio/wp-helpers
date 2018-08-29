@@ -140,7 +140,7 @@ final class MetaFields {
 		$metaFields = $this->metaFields['term'][$taxonomy] ?? [];
 
 		foreach ($metaFields as $metaKey => $metaField) {
-			if ($metaField['show_as_column']) {
+			if ($metaField['show_as_column'] !== false) {
 				$position = is_int($metaField['show_as_column']) ? $metaField['show_as_column'] : -1;
 				$newCol = [];
 				$newCol[$metaKey] = $metaField['name'];
