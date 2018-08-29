@@ -7,7 +7,8 @@ final class MetaFields {
 
 	protected $metaFields = [
 		'post'	=>	[],
-		'term'	=>	[]
+		'term'	=>	[],
+		'user'	=>	[]
 	];
 
 	/**
@@ -126,6 +127,12 @@ final class MetaFields {
 		}
 
 		$this->metaFields['term'][$taxonomy][$metaKey] = $args;
+	}
+
+	public function userMeta(string $metaKey, array $args = []) {
+		$args = $this->prepareMetaArgs($metaKey, $args);
+		register_meta('user', $metaKey, $args);
+		$this->metaFields['user'][$metaKey] = $args;
 	}
 
 	public function addTermColumns(array $columns): array {
