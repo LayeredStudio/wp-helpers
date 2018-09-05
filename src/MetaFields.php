@@ -36,11 +36,15 @@ final class MetaFields {
 	}
 
 	public function __construct() {
+		global $pagenow;
+
+		if (in_array($pagenow, ['term.php', 'edit-tags.php'])) {
+			wp_enqueue_media();
+		}
 
 		// load assets
 		add_action('admin_head', [$this, 'adminHeadAssets']);
 		add_action('admin_footer', [$this, 'adminFooterAssets']);
-		wp_enqueue_media();
 
 		// handle post types
 		add_action('add_meta_boxes', [$this, 'addMetaBoxes'], 100, 2);
