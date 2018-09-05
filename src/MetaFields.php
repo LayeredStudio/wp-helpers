@@ -542,21 +542,24 @@ final class MetaFields {
 		<?php
 	}
 
-	public function getPostMetaValue(int $postId, string $metaKey) {
+	public function getPostMetaValue(int $postId, string $metaKey, bool $raw = false) {
 		$post = get_post($postId);
 		$metaField = $this->metaFields['post'][$post->post_type][$metaKey] ?? [];
-		return $this->renderValue($metaField, get_post_meta($postId, $metaKey, $metaField['single']));
+		$metaValue = get_post_meta($postId, $metaKey, $metaField['single']);
+		return $raw ? $metaValue : $this->renderValue($metaField, $metaValue);
 	}
 
-	public function getTermMetaValue(int $termId, string $metaKey) {
+	public function getTermMetaValue(int $termId, string $metaKey, bool $raw = false) {
 		$term = get_term($termId);
 		$metaField = $this->metaFields['term'][$term->taxonomy][$metaKey] ?? [];
-		return $this->renderValue($metaField, get_term_meta($termId, $metaKey, $metaField['single']));
+		$metaValue = get_term_meta($postId, $metaKey, $metaField['single']);
+		return $raw ? $metaValue : $this->renderValue($metaField, $metaValue);
 	}
 
-	public function getUserMetaValue(int $userId, string $metaKey) {
+	public function getUserMetaValue(int $userId, string $metaKey, bool $raw = false) {
 		$metaField = $this->metaFields['user'][$metaKey] ?? [];
-		return $this->renderValue($metaField, get_user_meta($userId, $metaKey, $metaField['single']));
+		$metaValue = get_user_meta($postId, $metaKey, $metaField['single']);
+		return $raw ? $metaValue : $this->renderValue($metaField, $metaValue);
 	}
 
 	public function renderValue(array $metaField, $value) {
