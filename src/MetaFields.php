@@ -115,6 +115,13 @@ final class MetaFields {
 	public function postMeta(string $postType, string $metaKey, array $args = []) {
 		$args = $this->prepareMetaArgs($metaKey, $args);
 		register_post_meta($postType, $metaKey, $args);
+
+		if (!isset($this->metaFields['post'][$postType])) {
+			$this->metaFields['post'][$postType] = [];
+			add_filter('manage_edit-' . $postType . '_columns', [$this, 'addColumns']);
+			add_filter('manage_' . $postType . '_posts_custom_column', [$this, 'addColumnContent'], 10, 2);
+		}
+
 		$this->metaFields['post'][$postType][$metaKey] = $args;
 	}
 
@@ -126,8 +133,8 @@ final class MetaFields {
 			$this->metaFields['term'][$taxonomy] = [];
 			add_action($taxonomy . '_edit_form_fields', [$this, 'displayTermEditMeta'], 100, 2);
 			add_action($taxonomy . '_add_form_fields', [$this, 'displayTermAddMeta'], 100, 1);
-			add_filter('manage_edit-' . $taxonomy . '_columns', [$this, 'addTermColumns']);
-			add_filter('manage_' . $taxonomy . '_custom_column', [$this, 'addTermColumnContent'], 10, 3);
+			add_filter('manage_edit-' . $taxonomy . '_columns', [$this, 'addColumns']);
+			add_filter('manage_' . $taxonomy . '_custom_column', [$this, 'addColumnContent'], 10, 3);
 		}
 
 		$this->metaFields['term'][$taxonomy][$metaKey] = $args;
@@ -139,9 +146,14 @@ final class MetaFields {
 		$this->metaFields['user'][$metaKey] = $args;
 	}
 
-	public function addTermColumns(array $columns): array {
-		$taxonomy = get_current_screen()->taxonomy;
-		$metaFields = $this->metaFields['term'][$taxonomy] ?? [];
+	public function addColumns(array $columns): array {
+		$screen = get_current_screen();
+
+		if ($screen->taxonomy) {
+			$metaFields = $this->metaFields['term'][$screen->taxonomy] ?? [];
+		} else {
+			$metaFields = $this->metaFields['post'][$screen->post_type] ?? [];
+		}
 
 		foreach ($metaFields as $metaKey => $metaField) {
 			if ($metaField['show_as_column'] !== false) {
@@ -156,14 +168,30 @@ final class MetaFields {
 		return $columns;
 	}
 
-	public function addTermColumnContent($content, $columnName, $termId): string {
-		$taxonomy = get_current_screen()->taxonomy;
-		$metaFields = $this->metaFields['term'][$taxonomy] ?? [];
+	public function addColumnContent($columnName, $objId, $null = null): string {
+		$screen = get_current_screen();
+		$type = 'post';
+		$content = '';
+
+		if ($screen->taxonomy) {
+			$metaFields = $this->metaFields['term'][$screen->taxonomy] ?? [];
+			$type = 'term';
+			$columnName = $objId;
+			$objId = $null;
+		} else {
+			$metaFields = $this->metaFields['post'][$screen->post_type] ?? [];
+		}
+
+		
 
 		foreach ($metaFields as $metaKey => $metaField) {
 			if ($metaField['show_as_column'] && $metaKey === $columnName) {
-				$content = $this->getTermMetaValue($termId, $columnName);
+				$content = $type == 'post' ? $this->getPostMetaValue($objId, $columnName) : $this->getTermMetaValue($objId, $columnName);
 			}
+		}
+
+		if ($type == 'post') {
+			echo $content;
 		}
 
 		return $content;
@@ -552,13 +580,13 @@ final class MetaFields {
 	public function getTermMetaValue(int $termId, string $metaKey, bool $raw = false) {
 		$term = get_term($termId);
 		$metaField = $this->metaFields['term'][$term->taxonomy][$metaKey] ?? [];
-		$metaValue = get_term_meta($postId, $metaKey, $metaField['single']);
+		$metaValue = get_term_meta($termId, $metaKey, $metaField['single']);
 		return $raw ? $metaValue : $this->renderValue($metaField, $metaValue);
 	}
 
 	public function getUserMetaValue(int $userId, string $metaKey, bool $raw = false) {
 		$metaField = $this->metaFields['user'][$metaKey] ?? [];
-		$metaValue = get_user_meta($postId, $metaKey, $metaField['single']);
+		$metaValue = get_user_meta($userId, $metaKey, $metaField['single']);
 		return $raw ? $metaValue : $this->renderValue($metaField, $metaValue);
 	}
 
