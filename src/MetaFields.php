@@ -342,6 +342,10 @@ final class MetaFields {
 				<input id="<?php echo $metaKey ?>" type="<?php echo $metaField['advancedType'] ?>" name="<?php echo $metaField['input_name'] ?>" placeholder="<?php echo $metaField['placeholder'] ?: '' ?>" value="<?php echo $metaField['value'] ?>" class="<?php echo isset($metaField['class']) ? $metaField['class'] : 'regular-text' ?>" />
 				<?php if (isset($metaField['suffix'])) echo $metaField['suffix'] ?>
 
+			<?php elseif($metaField['advancedType'] == 'editor') : ?>
+
+				<?php wp_editor($metaField['value'], $metaKey, ['media_buttons' => false, 'textarea_rows' => 10, 'teeny' => true]) ?>
+
 			<?php elseif($metaField['advancedType'] == 'select') : ?>
 
 				<select id="<?php echo $metaKey ?>" name="<?php echo $metaField['input_name'] ?>" class="<?php echo isset($metaField['class']) ? $metaField['class'] : 'regular-text' ?>">
