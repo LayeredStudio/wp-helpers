@@ -236,6 +236,8 @@ final class MetaFields {
 
 				if ($metaField['advancedType'] === 'checkbox') {
 					$content = $content ? __('Yes', 'layered') : __('No', 'layered');
+				} elseif ($metaField['advancedType'] === 'attachment') {
+					$content = $content ? wp_get_attachment_image($content->ID, [50, 50], strpos($content->post_mime_type, 'image') === false, ['class' => 'attachment-preview']) : '';
 				}
 			}
 		}
@@ -447,12 +449,9 @@ final class MetaFields {
 				if ($metaField['value']) {
 					$attachment = get_post($metaField['value']);
 
-					if ($attachment && strpos($attachment->post_mime_type, 'image') !== false) {
-						$thumb = $attachment->guid;
+					if ($attachment) {
 						$caption = $attachment->post_excerpt ?: $caption;
-					} elseif ($attachment) {
-						$thumb = 'http://placehold.jp/ededed/9e9e9e/100x100.jpg?text=' . $attachment->post_mime_type;
-						$caption = $attachment->post_excerpt ?: $caption;
+						$thumb = wp_get_attachment_image_src($attachment->ID, [100, 100], strpos($attachment->post_mime_type, 'image') === false)[0];
 					} else {
 						$thumb = 'http://placehold.jp/ededed/9e9e9e/100x100.jpg?text=Missing Media';
 					}
@@ -462,7 +461,7 @@ final class MetaFields {
 				}
 				?>
 
-				<img id="<?php echo $metaKey ?>" <?php if ($metaField['value']) echo 'data-attachment-id="' . $metaField['value'] . '"' ?> class="js-layered-open-media" src="<?php echo $thumb ?>" height="100" alt="Select" />
+				<img id="<?php echo $metaKey ?>" <?php if ($metaField['value']) echo 'data-attachment-id="' . $metaField['value'] . '"' ?> class="js-layered-open-media attachment-preview" src="<?php echo $thumb ?>" height="100" alt="Select" />
 				<p class="caption"><?php echo $caption ?></p>
 
 				<!--<button class="js-layered-open-media button button-small">Choose media</button>-->
@@ -567,8 +566,8 @@ final class MetaFields {
 
 	public function renderValue(array $metaField, $value) {
 
-		if ($metaField['advancedType'] === 'attachment') {
-			$value = wp_get_attachment_image($value, [75, 75]);
+		if ($metaField['advancedType'] === 'attachment' && $value) {
+			$value = get_post($value);
 		} elseif ($metaField['advancedType'] === 'json') {
 			$value = $value ? json_decode($value, true) : null;
 		} elseif ($metaField['advancedType'] === 'select') {
