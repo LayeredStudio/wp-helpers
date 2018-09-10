@@ -56,6 +56,9 @@ final class MetaFields {
 
 	}
 
+
+	/* 1. Register meta fields */
+
 	protected function prepareMetaArgs(string $metaKey, array $args = []): array {
 
 		if (!isset($args['name']) || !strlen($args['name'])) {
@@ -65,15 +68,19 @@ final class MetaFields {
 		// In 4.7 one of 'string', 'boolean', 'integer', 'number' must be used as 'type'.
 		$basicTypes = [
 			'text'			=>	'string',
+			'editor'		=>	'string',
+			'json'			=>	'string',
 			'select'		=>	'string',
+			'radio'			=>	'string',
 			'date'			=>	'string',
 			'url'			=>	'string',
 			'time'			=>	'string',
-			'radio'			=>	'string',
-			'custom'		=>	'string',
+			'post'			=>	'integer',
+			'taxonomy'		=>	'integer',
 			'attachment'	=>	'integer',
 			'posts'			=>	'integer',
-			'checkbox'		=>	'boolean'
+			'checkbox'		=>	'boolean',
+			'custom'		=>	'string'
 		];
 
 		$args = wp_parse_args($args, [
@@ -107,9 +114,46 @@ final class MetaFields {
 			];
 		}
 
-		$args = apply_filters('meta_fields_args', $args, $metaKey);
+		if ($args['advancedType'] === 'post') {
+			$args['options'] = [
+				''	=>	__(' - Select -', 'layered')
+			];
 
-		return $args;
+			if (isset($args['postType'])) {
+				$posts = get_posts(['post_type' => $args['postType']]);
+
+				foreach ($posts as $post) {
+					$args['options'][$post->ID] = $post->post_title;
+				}
+
+			} else {
+				_doing_it_wrong(__FUNCTION__, sprintf(__('Field type "%s" requires "postType" being specified', 'layered'), $args['advancedType']), null);
+			}
+
+		}
+
+		if ($args['advancedType'] === 'taxonomy') {
+			$args['options'] = [
+				''	=>	__(' - Select -', 'layered')
+			];
+
+			if (isset($args['taxonomy'])) {
+				$terms = get_terms([
+					'taxonomy'		=>	$args['taxonomy'],
+					'hide_empty'	=>	false
+				]);
+
+				foreach ($terms as $term) {
+					$args['options'][$term->term_id] = $term->name;
+				}
+
+			} else {
+				_doing_it_wrong(__FUNCTION__, sprintf(__('Field type "%s" requires "taxonomy" being specified', 'layered'), $args['advancedType']), null);
+			}
+
+		}
+
+		return apply_filters('meta_fields_args', $args, $metaKey);
 	}
 
 	public function postMeta(string $postType, string $metaKey, array $args = []) {
@@ -327,6 +371,10 @@ final class MetaFields {
 		<?php
 	}
 
+
+
+	/* 4. Render fields */
+
 	protected function renderField(string $metaKey, array $metaField) {
 		if (is_array($metaField['value'])) {
 			$metaField['value'] = '';
@@ -346,7 +394,7 @@ final class MetaFields {
 
 				<?php wp_editor($metaField['value'], $metaKey, ['media_buttons' => false, 'textarea_rows' => 10, 'teeny' => true]) ?>
 
-			<?php elseif($metaField['advancedType'] == 'select') : ?>
+			<?php elseif(in_array($metaField['advancedType'], ['select', 'post', 'taxonomy'])) : ?>
 
 				<select id="<?php echo $metaKey ?>" name="<?php echo $metaField['input_name'] ?>" class="<?php echo isset($metaField['class']) ? $metaField['class'] : 'regular-text' ?>">
 					<?php foreach( $metaField['options'] as $option_key => $option_value ) : ?>
