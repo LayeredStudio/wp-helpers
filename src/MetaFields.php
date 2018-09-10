@@ -190,6 +190,10 @@ final class MetaFields {
 		$this->metaFields['user'][$metaKey] = $args;
 	}
 
+
+
+	/* 2. Display columns */
+
 	public function addColumns(array $columns): array {
 		$screen = get_current_screen();
 
@@ -226,11 +230,13 @@ final class MetaFields {
 			$metaFields = $this->metaFields['post'][$screen->post_type] ?? [];
 		}
 
-		
-
 		foreach ($metaFields as $metaKey => $metaField) {
 			if ($metaField['show_as_column'] && $metaKey === $columnName) {
-				$content = $type == 'post' ? $this->getPostMetaValue($objId, $columnName) : $this->getTermMetaValue($objId, $columnName);
+				$content = $type == 'post' ? $this->getPostMeta($objId, $columnName) : $this->getTermMeta($objId, $columnName);
+
+				if ($metaField['advancedType'] === 'checkbox') {
+					$content = $content ? __('Yes', 'layered') : __('No', 'layered');
+				}
 			}
 		}
 
@@ -563,6 +569,12 @@ final class MetaFields {
 
 		if ($metaField['advancedType'] === 'attachment') {
 			$value = wp_get_attachment_image($value, [75, 75]);
+		} elseif ($metaField['advancedType'] === 'json') {
+			$value = $value ? json_decode($value, true) : null;
+		} elseif ($metaField['advancedType'] === 'select') {
+			$value = $metaField['options'][$value] ?? null;
+		} elseif ($metaField['advancedType'] === 'checkbox') {
+			$value = !!$value;
 		}
 
 		return $value;
