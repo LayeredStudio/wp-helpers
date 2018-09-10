@@ -15,7 +15,7 @@ final class MetaFields {
 	 * Main MetaFields Instance. Ensures only one instance of MetaFields is loaded or can be loaded.
 	 */
 	public static function instance() {
-		if ( is_null( self::$_instance ) ) {
+		if (is_null(self::$_instance)) {
 			self::$_instance = new self();
 		}
 		return self::$_instance;
@@ -262,7 +262,7 @@ final class MetaFields {
 		$metaFields = $args['args'];
 		$cf = get_post_meta($post->ID);
 
-		wp_nonce_field('layered_meta_boxes', 'layered_meta_boxes_nonce');
+		wp_nonce_field('layeredPostMetaBoxes', 'layeredPostMetaBoxesNonce');
 		?>
 
 		<table class="form-table layered-meta-table">
@@ -315,6 +315,8 @@ final class MetaFields {
 		$metaFields = $this->metaFields['term'][$taxonomy] ?? [];
 		$cf = get_term_meta($term->term_id);
 
+		wp_nonce_field('layeredTermMetaBoxes', 'layeredTermMetaBoxesNonce');
+
 		foreach ($metaFields as $metaKey => $metaField) :
 			$metaField['value'] = $cf[$metaKey] ?? null;
 			if ($metaField['single'] && is_array($metaField['value'])) {
@@ -351,6 +353,8 @@ final class MetaFields {
 
 	public function displayTermAddMeta(string $taxonomy) {
 		$metaFields = $this->metaFields['term'][$taxonomy] ?? [];
+
+		wp_nonce_field('layeredTermMetaBoxes', 'layeredTermMetaBoxesNonce');
 
 		foreach ($metaFields as $metaKey => $metaField) :
 			?>
@@ -475,8 +479,13 @@ final class MetaFields {
 		<?php
 	}
 
+
+
+	/* 5. Save meta data */
+
 	public function savePostMetaFields(int $postId, \WP_Post $post) {
-		if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE ) return;
+		if ((defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) || !isset($_REQUEST['layeredPostMetaBoxesNonce']) || !wp_verify_nonce($_REQUEST['layeredPostMetaBoxesNonce'], 'layeredPostMetaBoxes')) return;
+
 		$metaFields = $this->metaFields['post'][$post->post_type] ?? [];
 
 		foreach ($metaFields as $metaKey => $metaField) {
@@ -499,7 +508,8 @@ final class MetaFields {
 	}
 
 	public function saveTaxonomyMetaFields(int $termId, int $termTaxonomyId, string $taxonomy) {
-		if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE ) return;
+		if ((defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) || !isset($_REQUEST['layeredTermMetaBoxesNonce']) || !wp_verify_nonce($_REQUEST['layeredTermMetaBoxesNonce'], 'layeredTermMetaBoxes')) return;
+
 		$metaFields = $this->metaFields['term'][$taxonomy] ?? [];
 
 		foreach ($metaFields as $metaKey => $metaField) {
