@@ -47,7 +47,7 @@ final class MetaFields {
 		add_action('admin_footer', [$this, 'adminFooterAssets']);
 
 		// handle post types
-		add_action('add_meta_boxes', [$this, 'addMetaBoxes'], 100, 2);
+		add_action('add_meta_boxes', [$this, 'addPostMetaBoxes'], 100, 2);
 		add_action('save_post', [$this, 'savePostMetaFields'], 100, 2);
 
 		// handle taxonomies
@@ -156,7 +156,7 @@ final class MetaFields {
 		return apply_filters('meta_fields_args', $args, $metaKey);
 	}
 
-	public function postMeta(string $postType, string $metaKey, array $args = []) {
+	public function addPostMeta(string $postType, string $metaKey, array $args = []) {
 		$args = $this->prepareMetaArgs($metaKey, $args);
 		register_post_meta($postType, $metaKey, $args);
 
@@ -169,7 +169,7 @@ final class MetaFields {
 		$this->metaFields['post'][$postType][$metaKey] = $args;
 	}
 
-	public function termMeta(string $taxonomy, string $metaKey, array $args = []) {
+	public function addTermMeta(string $taxonomy, string $metaKey, array $args = []) {
 		$args = $this->prepareMetaArgs($metaKey, $args);
 		register_term_meta($taxonomy, $metaKey, $args);
 
@@ -184,7 +184,7 @@ final class MetaFields {
 		$this->metaFields['term'][$taxonomy][$metaKey] = $args;
 	}
 
-	public function userMeta(string $metaKey, array $args = []) {
+	public function addUserMeta(string $metaKey, array $args = []) {
 		$args = $this->prepareMetaArgs($metaKey, $args);
 		register_meta('user', $metaKey, $args);
 		$this->metaFields['user'][$metaKey] = $args;
@@ -241,7 +241,11 @@ final class MetaFields {
 		return $content;
 	}
 
-	public function addMetaBoxes(string $postType, \WP_Post $post) {
+
+
+	/* 3. Add meta boxes */
+
+	public function addPostMetaBoxes(string $postType, \WP_Post $post) {
 		$metaFields = $this->metaFields['post'][$postType] ?? [];
 		$metaFieldsByGroup = [];
 
@@ -531,6 +535,41 @@ final class MetaFields {
 		}
 	}
 
+
+
+	/* 6. Get meta data */
+
+	public function getPostMeta(int $postId, string $metaKey, bool $raw = false) {
+		$post = get_post($postId);
+		$metaField = $this->metaFields['post'][$post->post_type][$metaKey] ?? [];
+		$metaValue = get_post_meta($postId, $metaKey, $metaField['single']);
+		return $raw ? $metaValue : $this->renderValue($metaField, $metaValue);
+	}
+
+	public function getTermMeta(int $termId, string $metaKey, bool $raw = false) {
+		$term = get_term($termId);
+		$metaField = $this->metaFields['term'][$term->taxonomy][$metaKey] ?? [];
+		$metaValue = get_term_meta($termId, $metaKey, $metaField['single']);
+		return $raw ? $metaValue : $this->renderValue($metaField, $metaValue);
+	}
+
+	public function getUserMeta(int $userId, string $metaKey, bool $raw = false) {
+		$metaField = $this->metaFields['user'][$metaKey] ?? [];
+		$metaValue = get_user_meta($userId, $metaKey, $metaField['single']);
+		return $raw ? $metaValue : $this->renderValue($metaField, $metaValue);
+	}
+
+	public function renderValue(array $metaField, $value) {
+
+		if ($metaField['advancedType'] === 'attachment') {
+			$value = wp_get_attachment_image($value, [75, 75]);
+		}
+
+		return $value;
+	}
+
+
+
 	public function adminHeadAssets() {
 		?>
 		<style type="text/css">
@@ -630,35 +669,6 @@ final class MetaFields {
 		});
 		</script>
 		<?php
-	}
-
-	public function getPostMetaValue(int $postId, string $metaKey, bool $raw = false) {
-		$post = get_post($postId);
-		$metaField = $this->metaFields['post'][$post->post_type][$metaKey] ?? [];
-		$metaValue = get_post_meta($postId, $metaKey, $metaField['single']);
-		return $raw ? $metaValue : $this->renderValue($metaField, $metaValue);
-	}
-
-	public function getTermMetaValue(int $termId, string $metaKey, bool $raw = false) {
-		$term = get_term($termId);
-		$metaField = $this->metaFields['term'][$term->taxonomy][$metaKey] ?? [];
-		$metaValue = get_term_meta($termId, $metaKey, $metaField['single']);
-		return $raw ? $metaValue : $this->renderValue($metaField, $metaValue);
-	}
-
-	public function getUserMetaValue(int $userId, string $metaKey, bool $raw = false) {
-		$metaField = $this->metaFields['user'][$metaKey] ?? [];
-		$metaValue = get_user_meta($userId, $metaKey, $metaField['single']);
-		return $raw ? $metaValue : $this->renderValue($metaField, $metaValue);
-	}
-
-	public function renderValue(array $metaField, $value) {
-
-		if ($metaField['advancedType'] === 'attachment') {
-			$value = wp_get_attachment_image($value, [75, 75]);
-		}
-
-		return $value;
 	}
 
 }
