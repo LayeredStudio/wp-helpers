@@ -75,6 +75,7 @@ final class MetaFields {
 			'date'			=>	'string',
 			'url'			=>	'string',
 			'time'			=>	'string',
+			'color'			=>	'string',
 			'post'			=>	'integer',
 			'taxonomy'		=>	'integer',
 			'attachment'	=>	'integer',
@@ -96,7 +97,10 @@ final class MetaFields {
 			'suffix'			=>	'',
 			'show_in_rest'		=>	true,
 			'input_name'		=>	$metaKey,
-			'show_as_column'	=>	false
+			'show_in_meta_box'	=>	true,
+			'show_in_columns'	=>	false,
+			'show_in_quick_edit'=>	false,
+			'show_in_bulk_edit'	=>	false
 		]);
 
 		$args['advancedType'] = $args['type'];
@@ -204,8 +208,8 @@ final class MetaFields {
 		}
 
 		foreach ($metaFields as $metaKey => $metaField) {
-			if ($metaField['show_as_column'] !== false) {
-				$position = is_int($metaField['show_as_column']) ? $metaField['show_as_column'] : -1;
+			if ($metaField['show_in_columns'] !== false) {
+				$position = is_int($metaField['show_in_columns']) ? $metaField['show_in_columns'] : -1;
 				$newCol = [];
 				$newCol[$metaKey] = $metaField['name'];
 
@@ -231,7 +235,7 @@ final class MetaFields {
 		}
 
 		foreach ($metaFields as $metaKey => $metaField) {
-			if ($metaField['show_as_column'] && $metaKey === $columnName) {
+			if ($metaField['show_in_columns'] && $metaKey === $columnName) {
 				$content = $type == 'post' ? $this->getPostMeta($objId, $columnName) : $this->getTermMeta($objId, $columnName);
 
 				if ($metaField['advancedType'] === 'checkbox') {
@@ -262,11 +266,15 @@ final class MetaFields {
 				$metaFieldsByGroup[$metaField['group']] = [];
 			}
 
-			$metaFieldsByGroup[$metaField['group']][$metaKey] = $metaField;
+			if ($metaField['show_in_meta_box']) {
+				$metaFieldsByGroup[$metaField['group']][$metaKey] = $metaField;
+			}
 		}
 
 		foreach ($metaFieldsByGroup as $groupName => $metaFields) {
-			add_meta_box(sanitize_title($groupName), $groupName, [$this, 'displayPostMetaBox'], $postType, $context = 'advanced', $priority = 'default', $metaFields);
+			if (count($metaFields)) {
+				add_meta_box(sanitize_title($groupName), $groupName, [$this, 'displayPostMetaBox'], $postType, $context = 'advanced', $priority = 'default', $metaFields);
+			}
 		}
 	}
 
@@ -325,8 +333,15 @@ final class MetaFields {
 
 	public function displayTermEditMeta(\WP_Term $term, string $taxonomy) {
 		$metaFields = $this->metaFields['term'][$taxonomy] ?? [];
-		$cf = get_term_meta($term->term_id);
+		$metaFields = array_filter($metaFields, function($metaField) {
+			return $metaField['show_in_meta_box'];
+		});
 
+		if (!count($metaFields)) {
+			return;
+		}
+
+		$cf = get_term_meta($term->term_id);
 		wp_nonce_field('layeredTermMetaBoxes', 'layeredTermMetaBoxesNonce');
 
 		foreach ($metaFields as $metaKey => $metaField) :
@@ -365,6 +380,13 @@ final class MetaFields {
 
 	public function displayTermAddMeta(string $taxonomy) {
 		$metaFields = $this->metaFields['term'][$taxonomy] ?? [];
+		$metaFields = array_filter($metaFields, function($metaField) {
+			return $metaField['show_in_meta_box'];
+		});
+
+		if (!count($metaFields)) {
+			return;
+		}
 
 		wp_nonce_field('layeredTermMetaBoxes', 'layeredTermMetaBoxesNonce');
 
@@ -408,7 +430,7 @@ final class MetaFields {
 
 			<?php elseif($metaField['advancedType'] == 'editor') : ?>
 
-				<?php wp_editor($metaField['value'], $metaKey, ['media_buttons' => false, 'textarea_rows' => 10, 'teeny' => true]) ?>
+				<?php wp_editor($metaField['value'], $metaKey, ['textarea_name' => $metaField['input_name'], 'media_buttons' => false, 'textarea_rows' => 10, 'teeny' => true]) ?>
 
 			<?php elseif(in_array($metaField['advancedType'], ['select', 'post', 'taxonomy'])) : ?>
 
@@ -498,7 +520,7 @@ final class MetaFields {
 		$metaFields = $this->metaFields['post'][$post->post_type] ?? [];
 
 		foreach ($metaFields as $metaKey => $metaField) {
-			if (isset($_POST[$metaKey])) {
+			if (isset($_POST[$metaKey]) && $metaField['show_in_meta_box']) {
 				if (!$metaField['single']) {
 					delete_post_meta($post->ID, $metaKey);
 
@@ -522,7 +544,7 @@ final class MetaFields {
 		$metaFields = $this->metaFields['term'][$taxonomy] ?? [];
 
 		foreach ($metaFields as $metaKey => $metaField) {
-			if (isset($_POST[$metaKey])) {
+			if (isset($_POST[$metaKey]) && $metaField['show_in_meta_box']) {
 				if (!$metaField['single']) {
 					delete_term_meta($termId, $metaKey);
 
