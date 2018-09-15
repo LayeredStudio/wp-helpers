@@ -544,29 +544,43 @@ final class MetaFields {
 
 	/* 6. Get meta data */
 
-	public function getPostMeta(int $postId, string $metaKey, bool $raw = false) {
+	public function getMeta(string $metaType, array $metaField, int $id, string $metaKey) {
+		$metaValue = get_metadata($metaType, $id, $metaKey, $metaField['single']);
+
+		if ($metaField['single']) {
+			$metaValue = $this->renderValue($metaField, $metaValue);
+		} else {
+			$metaValue = array_map(function($value) use($metaField) {
+				return $this->renderValue($metaField, $value);
+			}, $metaValue);
+		}
+
+		return $metaValue;
+	}
+
+	public function getPostMeta(int $postId, string $metaKey) {
 		$post = get_post($postId);
-		$metaField = $this->metaFields['post'][$post->post_type][$metaKey] ?? [];
-		$metaValue = get_post_meta($postId, $metaKey, $metaField['single']);
-		return $raw ? $metaValue : $this->renderValue($metaField, $metaValue);
+		$metaField = $this->metaFields['post'][$post->post_type][$metaKey];
+
+		return $this->getMeta('post', $metaField, $postId, $metaKey);
 	}
 
-	public function getTermMeta(int $termId, string $metaKey, bool $raw = false) {
+	public function getTermMeta(int $termId, string $metaKey) {
 		$term = get_term($termId);
-		$metaField = $this->metaFields['term'][$term->taxonomy][$metaKey] ?? [];
-		$metaValue = get_term_meta($termId, $metaKey, $metaField['single']);
-		return $raw ? $metaValue : $this->renderValue($metaField, $metaValue);
+		$metaField = $this->metaFields['term'][$term->taxonomy][$metaKey];
+		
+		return $this->getMeta('term', $metaField, $termId, $metaKey);
 	}
 
-	public function getUserMeta(int $userId, string $metaKey, bool $raw = false) {
-		$metaField = $this->metaFields['user'][$metaKey] ?? [];
-		$metaValue = get_user_meta($userId, $metaKey, $metaField['single']);
-		return $raw ? $metaValue : $this->renderValue($metaField, $metaValue);
+	public function getUserMeta(int $userId, string $metaKey) {
+		$metaField = $this->metaFields['user'][$metaKey];
+
+		return $this->getMeta('user', $metaField, $userId, $metaKey);
 	}
 
 	public function renderValue(array $metaField, $value) {
 
-		if ($metaField['advancedType'] === 'attachment' && $value) {
+		if (in_array($metaField['advancedType'], ['attachment', 'post']) && $value) {
 			$value = get_post($value);
 		} elseif ($metaField['advancedType'] === 'json') {
 			$value = $value ? json_decode($value, true) : null;
