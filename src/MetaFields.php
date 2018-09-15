@@ -242,6 +242,8 @@ final class MetaFields {
 					$content = $content ? __('Yes', 'layered') : __('No', 'layered');
 				} elseif ($metaField['advancedType'] === 'attachment') {
 					$content = $content ? wp_get_attachment_image($content->ID, [50, 50], strpos($content->post_mime_type, 'image') === false, ['class' => 'attachment-preview']) : '';
+				} elseif ($metaField['advancedType'] === 'post') {
+					$content = $content ? $content->post_title : '';
 				}
 			}
 		}
