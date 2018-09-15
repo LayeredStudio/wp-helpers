@@ -1,108 +1,93 @@
 <?php
-
 namespace Layered\Wp;
 
-class CustomPostType {
+final class CustomPostType {
 
-	public $postType;
-	public $taxonomies = [];
-	public $args;
-	public static $i18n = 'layered';
+	protected $postType;
+	protected $args;
+	protected $taxonomies = [];
 
-	public static function add(string $postType, array $args = []) {
+	public static function add(string $postType, array $args = []): self {
 		return new static($postType, $args);
 	}
 
-	function __construct(string $postType, array $args = []) {
-		$this->postType = strtolower($postType);
-
+	public function __construct(string $postType, array $args = []) {
+		$this->postType = sanitize_key($postType);
 		$args['labels'] = $args['labels'] ?? [];
-		$niceName = ucwords(str_replace('-', ' ', $this->postType));
 
-		$labels = array_merge([
-			'name'                =>  $niceName . 's',
-			'singular_name'       =>  $niceName,
-			'add_new_item'        =>  sprintf( __('Add New %s', self::$i18n), $niceName),
-			'edit_item'           =>  sprintf( __('Edit %s', self::$i18n), $niceName),
-			'new_item'            =>  sprintf( __('New %s', self::$i18n), $niceName),
-			'view_item'           =>  sprintf( __('View %s', self::$i18n), $niceName),
-			'search_items'        =>  sprintf( __('Search %ss', self::$i18n), $niceName),
-			'not_found'           =>  sprintf( __('No %ss found', self::$i18n), $niceName),
-			'not_found_in_trash'  =>  sprintf( __('No %ss found in Trash', self::$i18n), $niceName),
-		], $args['labels']);
+		// TODO use inflector for nice name & pluralize
+		$args['labels']['singular_name'] = $args['labels']['singular_name'] ?? ucwords(str_replace(['-', '_'], ' ', $this->postType));
+		$args['labels']['name'] = $args['labels']['name'] ?? $args['labels']['singular_name'] . 's';
 
-		$this->args = array_merge([
-			'public'            =>  true,
-			'query_var'         =>  true,
-			'rewrite'           =>  true,
-			'capability_type'   =>  'post',
-			'supports'          =>  ['title', 'editor', 'thumbnail', 'excerpt'],
-			'has_archive'       =>  true,
-			'show_in_rest'      =>  true
-		], $args);
+		$labels = wp_parse_args($args['labels'], [
+			'name'					=>	$args['labels']['name'],
+			'singular_name'			=>	$args['labels']['singular_name'],
+			'add_new_item'			=>	sprintf(__('Add New %s', 'layered'), $args['labels']['singular_name']),
+			'edit_item'				=>	sprintf(__('Edit %s', 'layered'), $args['labels']['singular_name']),
+			'new_item'				=>	sprintf(__('New %s', 'layered'), $args['labels']['singular_name']),
+			'view_item'				=>	sprintf(__('View %s', 'layered'), $args['labels']['singular_name']),
+			'search_items'			=>	sprintf(__('Search %s', 'layered'), $args['labels']['name']),
+			'not_found'				=>	sprintf(__('No %s found', 'layered'), $args['labels']['name']),
+			'not_found_in_trash'	=>	sprintf(__('No %s found in Trash', 'layered'), $args['labels']['name'])
+		]);
+
+		$this->args = wp_parse_args($args, [
+			'public'			=>	true,
+			'supports'			=>	['title', 'editor', 'thumbnail'],
+			'has_archive'		=>	true,
+			'show_in_rest'		=>	true
+		]);
 		$this->args['labels'] = $labels;
 
 		register_post_type($this->postType, $this->args);
+	}
+
+	public function addTaxonomy(string $taxonomy, array $args = []): self {
+		$taxonomy = sanitize_key($taxonomy);
+		$args['labels'] = $args['labels'] ?? [];
+
+		// TODO use inflector for nice name & pluralize
+		$args['labels']['singular_name'] = $args['labels']['singular_name'] ?? ucwords(str_replace(['-', '_'], ' ', $taxonomy));
+		$args['labels']['name'] = $args['labels']['name'] ?? $args['labels']['singular_name'] . 's';
+
+		$labels = wp_parse_args($args['labels'], [
+			'name'				=>	$args['labels']['name'],
+			'singular_name'		=>	$args['labels']['singular_name'],
+			'search_items'		=>	sprintf(__('Search %s', 'layered'), $args['labels']['name']),
+			'all_items'			=>	sprintf(__('All %s', 'layered'), $args['labels']['name']),
+			'parent_item'		=>	sprintf(__('Parent %s', 'layered'), $args['labels']['singular_name']),
+			'parent_item_colon'	=>	sprintf(__('Parent %s:', 'layered'), $args['labels']['singular_name']),
+			'edit_item'			=>	sprintf(__('Edit %s', 'layered'),  $args['labels']['singular_name']),
+			'update_item'		=>	sprintf(__('Update %s', 'layered'), $args['labels']['singular_name']),
+			'add_new_item'		=>	sprintf(__('Add New %s', 'layered'), $args['labels']['singular_name']),
+			'new_item_name'		=>	sprintf(__('New %s Name', 'layered'), $args['labels']['singular_name'])
+		]);
+
+		$args = wp_parse_args($args, [
+			'public'			=>	$this->args['public'],	// Inherited from Post Type
+			'hierarchical'		=>	true,
+			'show_in_rest'		=>	true
+		]);
+		$args['labels'] = $labels;
+
+		$taxonomy = $this->postType . '-' . $taxonomy;
+		$this->taxonomies[$taxonomy] = $args;
+
+		register_taxonomy($taxonomy, $this->postType, $args);
+		$this->addColumns($taxonomy);
 
 		return $this;
 	}
 
-  public function addTaxonomy(string $taxonomy, string $pluralName = null, array $args = []) {
+	public function addThumbnails(array $sizes): self {
+		add_theme_support('post-thumbnails');
 
-    if (is_array($pluralName)) {
-      $args = $pluralName;
-      $pluralName = null;
-    }
+		foreach ($sizes as $size => $options) {
+			add_image_size($size, $options[0], isset($options[1]) ? $options[1] : 0, isset($options[2]) && $options[2] == true);
+		}
 
-    $niceName = ucwords(str_replace('-', ' ', $taxonomy));
-
-    $taxonomy = $this->postType . '-' . strtolower($taxonomy);
-
-    if (!isset( $args['labels'])) {
-      $args['labels'] = array();
-    }
-
-    if (!$pluralName) {
-      $pluralName = isset($args['labels']) && isset($args['labels_name']) ? $args['labels']['name'] : $niceName . 's';
-    }
-
-    $labels = array_merge([
-      'name'              =>  $pluralName,
-      'singular_name'     =>  $niceName,
-      'search_items'      =>  sprintf(__('Search %s', self::$i18n), $pluralName),
-      'all_items'         =>  sprintf(__('All %s', self::$i18n), $pluralName),
-      'parent_item'       =>  sprintf(__('Parent %s', self::$i18n), $niceName),
-      'parent_item_colon' =>  sprintf(__('Parent %s:', self::$i18n), $niceName),
-      'edit_item'         =>  sprintf(__('Edit %s', self::$i18n),  $niceName),
-      'update_item'       =>  sprintf(__('Update %s', self::$i18n), $niceName),
-      'add_new_item'      =>  sprintf(__('Add New %s', self::$i18n), $niceName),
-      'new_item_name'     =>  sprintf(__('New %s Name', self::$i18n), $niceName)
-    ], $args['labels'] );
-
-    $args = array_merge([
-      'public'            =>  $this->args['public'],
-      'hierarchical'      =>  true,
-      'show_in_rest'		=>	true
-    ], $args );
-    $args['labels'] = $labels;
-
-    register_taxonomy($taxonomy, $this->postType, $args);
-
-    $this->taxonomies[$taxonomy] = $args;
-    $this->addColumns($taxonomy);
-
-    return $this;
-  }
-
-  public function addThumbnails($sizes) {
-    add_theme_support('post-thumbnails');
-
-    foreach ($sizes as $size => $options) {
-      add_image_size( $size, $options[0], isset( $options[1] ) ? $options[1] : 0, isset( $options[2] ) && $options[2] == true );
-    }
-
-    return $this;
-  }
+		return $this;
+	}
 
   public function addColumns($columns) {
 
@@ -120,7 +105,7 @@ class CustomPostType {
         if ($column == 'author') {
           $column = [
             'id'    =>  'author',
-            'name'  =>  __('Author', self::$i18n)
+            'name'  =>  __('Author', 'layered')
           ];
         } elseif (isset($this->taxonomies[$column])) {
           $column = [
@@ -156,7 +141,7 @@ class CustomPostType {
             'id'    =>  $column,
             'name'  =>  $column,
             'value' =>  function() {
-              printf('<i>%s</i>', __('undefined value', self::$i18n));
+              printf('<i>%s</i>', __('undefined value', 'layered'));
             }
           ];
         }
@@ -199,14 +184,7 @@ class CustomPostType {
     return $this;
   }
 
-  function addMetaBox($title, $fields, $context = 'normal', $priority = 'default') {
-
-    new \Layered\Wp\PostMetaBox($this->postType, $title, $fields, $context, $priority);
-
-    return $this;
-  }
-
-	function addMetaFields(array $metaFields) {
+	function addMetaFields(array $metaFields): self {
 
 		foreach ($metaFields as $metaKey => $metaField) {
 			$this->addMetaField($metaKey, $metaField);
@@ -215,7 +193,7 @@ class CustomPostType {
 		return $this;
 	}
 
-	function addMetaField(string $metaKey, array $args) {
+	function addMetaField(string $metaKey, array $args): self {
 
 		MetaFields::instance()->addPostMeta($this->postType, $metaKey, $args);
 

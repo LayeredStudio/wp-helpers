@@ -35,7 +35,7 @@ final class MetaFields {
 		_doing_it_wrong(__FUNCTION__, __('Unserializing instances of this class is forbidden.', 'layered'), null);
 	}
 
-	public function __construct() {
+	protected function __construct() {
 		global $pagenow;
 
 		if (in_array($pagenow, ['term.php', 'edit-tags.php'])) {
