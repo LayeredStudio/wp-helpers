@@ -1,16 +1,18 @@
 {
     "name": "layered/wp-helpers",
-    "description": "Helpers for easier WordPress development",
     "type": "library",
-    "license": "MIT",
+    "description": "Helpers for easier WordPress development",
     "keywords": ["wordpress", "wordpress-plugin", "wordpress-theme"],
+    "license": "MIT",
     "authors": [
         {
             "name": "Andrei Igna",
             "email": "andrei.igna@layered.studio"
         }
     ],
-    "require": {},
+    "require": {
+        "php": "~7.0",
+    },
     "autoload": {
         "psr-4": {
             "Layered\\Wp\\": "src/"
