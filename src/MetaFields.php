@@ -191,6 +191,12 @@ final class MetaFields {
 	public function addUserMeta(string $metaKey, array $args = []) {
 		$args = $this->prepareMetaArgs($metaKey, $args);
 		register_meta('user', $metaKey, $args);
+
+		if (empty($this->metaFields['user'])) {
+			add_filter('manage_users_columns', [$this, 'addColumns']);
+			add_filter('manage_users_custom_column', [$this, 'addColumnContent'], 10, 3);
+		}
+
 		$this->metaFields['user'][$metaKey] = $args;
 	}
 
@@ -201,8 +207,10 @@ final class MetaFields {
 	public function addColumns(array $columns): array {
 		$screen = get_current_screen();
 
-		if ($screen->taxonomy) {
+		if ($screen->base === 'edit-tags') {
 			$metaFields = $this->metaFields['term'][$screen->taxonomy] ?? [];
+		} elseif ($screen->base === 'users') {
+			$metaFields = $this->metaFields['user'] ?? [];
 		} else {
 			$metaFields = $this->metaFields['post'][$screen->post_type] ?? [];
 		}
@@ -220,23 +228,28 @@ final class MetaFields {
 		return $columns;
 	}
 
-	public function addColumnContent($columnName, $objId, $null = null): string {
+	public function addColumnContent($content, $columnName, $objId = null): string {
 		$screen = get_current_screen();
-		$type = 'post';
-		$content = '';
 
-		if ($screen->taxonomy) {
+		if ($screen->base === 'edit-tags') {
 			$metaFields = $this->metaFields['term'][$screen->taxonomy] ?? [];
-			$type = 'term';
-			$columnName = $objId;
-			$objId = $null;
-		} else {
+			$metaType = 'term';
+		} elseif ($screen->base === 'users') {
+			$metaFields = $this->metaFields['user'] ?? [];
+			$metaType = 'user';
+		} elseif ($screen->base === 'edit') {
 			$metaFields = $this->metaFields['post'][$screen->post_type] ?? [];
+			$metaType = 'post';
+			$objId = $columnName;
+			$columnName = $content;
+			$content = '';
+		} else {
+			return '';
 		}
 
 		foreach ($metaFields as $metaKey => $metaField) {
 			if ($metaField['show_in_columns'] && $metaKey === $columnName) {
-				$content = $type == 'post' ? $this->getPostMeta($objId, $columnName) : $this->getTermMeta($objId, $columnName);
+				$content = $this->getMeta($metaType, $metaField, $objId, $metaKey);
 
 				if ($metaField['advancedType'] === 'checkbox') {
 					$content = $content ? __('Yes', 'layered') : __('No', 'layered');
@@ -244,11 +257,13 @@ final class MetaFields {
 					$content = $content ? wp_get_attachment_image($content->ID, [50, 50], strpos($content->post_mime_type, 'image') === false, ['class' => 'attachment-preview']) : '';
 				} elseif ($metaField['advancedType'] === 'post') {
 					$content = $content ? $content->post_title : '';
+				} elseif ($metaField['advancedType'] === 'json') {
+					$content = $content ? json_encode($content, JSON_PRETTY_PRINT) : '';
 				}
 			}
 		}
 
-		if ($type == 'post') {
+		if ($metaType == 'post') {
 			echo $content;
 		}
 
