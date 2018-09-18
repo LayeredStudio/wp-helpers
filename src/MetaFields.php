@@ -99,6 +99,7 @@ final class MetaFields {
 			'inputName'			=>	$metaKey,
 			'showInMetaBox'		=>	true,
 			'showInColumns'		=>	false,
+			'columnContent'		=>	null,
 			'showInQuickEdit'	=>	false,
 			'showInBulkEdit'	=>	false
 		]);
@@ -251,14 +252,18 @@ final class MetaFields {
 			if ($metaField['showInColumns'] && $metaKey === $columnName) {
 				$content = $this->getMeta($metaType, $metaField, $objId, $metaKey);
 
-				if ($metaField['advancedType'] === 'checkbox') {
-					$content = $content ? __('Yes', 'layered') : __('No', 'layered');
-				} elseif ($metaField['advancedType'] === 'attachment') {
-					$content = $content ? wp_get_attachment_image($content->ID, [50, 50], strpos($content->post_mime_type, 'image') === false, ['class' => 'attachment-preview']) : '';
-				} elseif ($metaField['advancedType'] === 'post') {
-					$content = $content ? $content->post_title : '';
-				} elseif ($metaField['advancedType'] === 'json') {
-					$content = $content ? json_encode($content, JSON_PRETTY_PRINT) : '';
+				if (is_callable($metaField['columnContent'])) {
+					$content = call_user_func_array($metaField['columnContent'], [$content, $metaKey, $metaField]);
+				} else {
+					if ($metaField['advancedType'] === 'checkbox') {
+						$content = $content ? __('Yes', 'layered') : __('No', 'layered');
+					} elseif ($metaField['advancedType'] === 'attachment') {
+						$content = $content ? wp_get_attachment_image($content->ID, [50, 50], strpos($content->post_mime_type, 'image') === false, ['class' => 'attachment-preview']) : '';
+					} elseif ($metaField['advancedType'] === 'post') {
+						$content = $content ? $content->post_title : '';
+					} elseif ($metaField['advancedType'] === 'json') {
+						$content = $content ? json_encode($content, JSON_PRETTY_PRINT) : '';
+					}
 				}
 			}
 		}
@@ -267,7 +272,7 @@ final class MetaFields {
 			echo $content;
 		}
 
-		return $content;
+		return (string) $content;
 	}
 
 
