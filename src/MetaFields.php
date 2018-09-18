@@ -96,11 +96,11 @@ final class MetaFields {
 			'prefix'			=>	'',
 			'suffix'			=>	'',
 			'show_in_rest'		=>	true,
-			'input_name'		=>	$metaKey,
-			'show_in_meta_box'	=>	true,
-			'show_in_columns'	=>	false,
-			'show_in_quick_edit'=>	false,
-			'show_in_bulk_edit'	=>	false
+			'inputName'			=>	$metaKey,
+			'showInMetaBox'		=>	true,
+			'showInColumns'		=>	false,
+			'showInQuickEdit'	=>	false,
+			'showInBulkEdit'	=>	false
 		]);
 
 		$args['advancedType'] = $args['type'];
@@ -109,7 +109,7 @@ final class MetaFields {
 		}
 
 		if (!$args['single']) {
-			$args['input_name'] .= '[]';
+			$args['inputName'] .= '[]';
 		}
 
 		if ($args['advancedType'] === 'checkbox') {
@@ -216,8 +216,8 @@ final class MetaFields {
 		}
 
 		foreach ($metaFields as $metaKey => $metaField) {
-			if ($metaField['show_in_columns'] !== false) {
-				$position = is_int($metaField['show_in_columns']) ? $metaField['show_in_columns'] : -1;
+			if ($metaField['showInColumns'] !== false) {
+				$position = is_int($metaField['showInColumns']) ? $metaField['showInColumns'] : -1;
 				$newCol = [];
 				$newCol[$metaKey] = $metaField['name'];
 
@@ -248,7 +248,7 @@ final class MetaFields {
 		}
 
 		foreach ($metaFields as $metaKey => $metaField) {
-			if ($metaField['show_in_columns'] && $metaKey === $columnName) {
+			if ($metaField['showInColumns'] && $metaKey === $columnName) {
 				$content = $this->getMeta($metaType, $metaField, $objId, $metaKey);
 
 				if ($metaField['advancedType'] === 'checkbox') {
@@ -283,7 +283,7 @@ final class MetaFields {
 				$metaFieldsByGroup[$metaField['group']] = [];
 			}
 
-			if ($metaField['show_in_meta_box']) {
+			if ($metaField['showInMetaBox']) {
 				$metaFieldsByGroup[$metaField['group']][$metaKey] = $metaField;
 			}
 		}
@@ -351,7 +351,7 @@ final class MetaFields {
 	public function displayTermEditMeta(\WP_Term $term, string $taxonomy) {
 		$metaFields = $this->metaFields['term'][$taxonomy] ?? [];
 		$metaFields = array_filter($metaFields, function($metaField) {
-			return $metaField['show_in_meta_box'];
+			return $metaField['showInMetaBox'];
 		});
 
 		if (!count($metaFields)) {
@@ -398,7 +398,7 @@ final class MetaFields {
 	public function displayTermAddMeta(string $taxonomy) {
 		$metaFields = $this->metaFields['term'][$taxonomy] ?? [];
 		$metaFields = array_filter($metaFields, function($metaField) {
-			return $metaField['show_in_meta_box'];
+			return $metaField['showInMetaBox'];
 		});
 
 		if (!count($metaFields)) {
@@ -442,16 +442,16 @@ final class MetaFields {
 			<?php if (in_array($metaField['advancedType'], ['text', 'number', 'date', 'url', 'time'])) : ?>
 
 				<?php if (isset($metaField['prefix'])) echo $metaField['prefix'] ?>
-				<input id="<?php echo $metaKey ?>" type="<?php echo $metaField['advancedType'] ?>" name="<?php echo $metaField['input_name'] ?>" placeholder="<?php echo $metaField['placeholder'] ?: '' ?>" value="<?php echo $metaField['value'] ?>" class="<?php echo isset($metaField['class']) ? $metaField['class'] : 'regular-text' ?>" />
+				<input id="<?php echo $metaKey ?>" type="<?php echo $metaField['advancedType'] ?>" name="<?php echo $metaField['inputName'] ?>" placeholder="<?php echo $metaField['placeholder'] ?: '' ?>" value="<?php echo $metaField['value'] ?>" class="<?php echo isset($metaField['class']) ? $metaField['class'] : 'regular-text' ?>" />
 				<?php if (isset($metaField['suffix'])) echo $metaField['suffix'] ?>
 
 			<?php elseif($metaField['advancedType'] == 'editor') : ?>
 
-				<?php wp_editor($metaField['value'], $metaKey, ['textarea_name' => $metaField['input_name'], 'media_buttons' => false, 'textarea_rows' => 10, 'teeny' => true]) ?>
+				<?php wp_editor($metaField['value'], $metaKey, ['textarea_name' => $metaField['inputName'], 'media_buttons' => false, 'textarea_rows' => 10, 'teeny' => true]) ?>
 
 			<?php elseif(in_array($metaField['advancedType'], ['select', 'post', 'taxonomy'])) : ?>
 
-				<select id="<?php echo $metaKey ?>" name="<?php echo $metaField['input_name'] ?>" class="<?php echo isset($metaField['class']) ? $metaField['class'] : 'regular-text' ?>">
+				<select id="<?php echo $metaKey ?>" name="<?php echo $metaField['inputName'] ?>" class="<?php echo isset($metaField['class']) ? $metaField['class'] : 'regular-text' ?>">
 					<?php foreach( $metaField['options'] as $option_key => $option_value ) : ?>
 						<option <?php selected( $option_key, $metaField['value'] ) ?> value="<?php echo $option_key ?>"><?php echo $option_value ?></option>
 					<?php endforeach ?>
@@ -459,7 +459,7 @@ final class MetaFields {
 
 			<?php elseif( 'posts' == $metaField['advancedType'] ) : ?>
 
-				<select id="<?php echo $metaKey ?>" name="<?php echo $metaField['input_name'] ?>">
+				<select id="<?php echo $metaKey ?>" name="<?php echo $metaField['inputName'] ?>">
 					<?php
 					$posts = get_posts($metaField['args']);
 					?>
@@ -475,7 +475,7 @@ final class MetaFields {
 
 				<?php foreach ($metaField['options'] as $key => $label) : ?>
 					<label>
-						<input type="<?php echo $metaField['advancedType'] ?>" id="<?php echo $metaKey ?>" name="<?php echo $metaField['input_name'] ?>" value="<?php echo $key ?>" <?php echo $metaField['value'] == $key ? 'checked' : '' ?> />
+						<input type="<?php echo $metaField['advancedType'] ?>" id="<?php echo $metaKey ?>" name="<?php echo $metaField['inputName'] ?>" value="<?php echo $key ?>" <?php echo $metaField['value'] == $key ? 'checked' : '' ?> />
 						<?php echo $label ?>
 					</label><br>
 				<?php endforeach ?>
@@ -504,7 +504,7 @@ final class MetaFields {
 				<p class="caption"><?php echo $caption ?></p>
 
 				<!--<button class="js-layered-open-media button button-small">Choose media</button>-->
-				<input type="hidden" name="<?php echo $metaField['input_name'] ?>" value="<?php echo $metaField['value'] ?>" />
+				<input type="hidden" name="<?php echo $metaField['inputName'] ?>" value="<?php echo $metaField['value'] ?>" />
 
 			<?php elseif ($metaField['advancedType'] == 'custom') : ?>
 
@@ -537,7 +537,7 @@ final class MetaFields {
 		$metaFields = $this->metaFields['post'][$post->post_type] ?? [];
 
 		foreach ($metaFields as $metaKey => $metaField) {
-			if (isset($_POST[$metaKey]) && $metaField['show_in_meta_box']) {
+			if (isset($_POST[$metaKey]) && $metaField['showInMetaBox']) {
 				if (!$metaField['single']) {
 					delete_post_meta($post->ID, $metaKey);
 
@@ -561,7 +561,7 @@ final class MetaFields {
 		$metaFields = $this->metaFields['term'][$taxonomy] ?? [];
 
 		foreach ($metaFields as $metaKey => $metaField) {
-			if (isset($_POST[$metaKey]) && $metaField['show_in_meta_box']) {
+			if (isset($_POST[$metaKey]) && $metaField['showInMetaBox']) {
 				if (!$metaField['single']) {
 					delete_term_meta($termId, $metaKey);
 
