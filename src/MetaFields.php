@@ -262,8 +262,12 @@ final class MetaFields {
 
 	/* 3. Add meta boxes */
 
-	public function addPostMetaBoxes(string $postType, \WP_Post $post) {
-		$metaFields = $this->metaFields['post'][$postType] ?? [];
+	public function addPostMetaBoxes(string $postType, $post) {
+		if ($postType === 'comment') {
+			$metaFields = $this->metaFields['comment'] ?? [];
+		} else {
+			$metaFields = $this->metaFields['post'][$postType] ?? [];
+		}
 		$metaFieldsByGroup = [];
 
 		foreach ($metaFields as $metaKey => $metaField) {
