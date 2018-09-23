@@ -120,42 +120,25 @@ final class MetaFields {
 		}
 
 		if ($args['advancedType'] === 'post') {
+			$posts = get_posts($args['postArgs'] ?? []);
 			$args['options'] = [
 				''	=>	__(' - Select -', 'layered')
 			];
 
-			if (isset($args['postType'])) {
-				$posts = get_posts(['post_type' => $args['postType']]);
-
-				foreach ($posts as $post) {
-					$args['options'][$post->ID] = $post->post_title;
-				}
-
-			} else {
-				_doing_it_wrong(__FUNCTION__, sprintf(__('Field type "%s" requires "postType" being specified', 'layered'), $args['advancedType']), null);
+			foreach ($posts as $post) {
+				$args['options'][$post->ID] = $post->post_title;
 			}
-
 		}
 
 		if ($args['advancedType'] === 'taxonomy') {
+			$terms = get_terms($args['termArgs'] ?? []);
 			$args['options'] = [
 				''	=>	__(' - Select -', 'layered')
 			];
 
-			if (isset($args['taxonomy'])) {
-				$terms = get_terms([
-					'taxonomy'		=>	$args['taxonomy'],
-					'hide_empty'	=>	false
-				]);
-
-				foreach ($terms as $term) {
-					$args['options'][$term->term_id] = $term->name;
-				}
-
-			} else {
-				_doing_it_wrong(__FUNCTION__, sprintf(__('Field type "%s" requires "taxonomy" being specified', 'layered'), $args['advancedType']), null);
+			foreach ($terms as $term) {
+				$args['options'][$term->term_id] = $term->name;
 			}
-
 		}
 
 		return apply_filters('meta_fields_args', $args, $metaKey);
