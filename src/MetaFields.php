@@ -427,10 +427,10 @@ final class MetaFields {
 		<fieldset>
 			<legend class="screen-reader-text"><span><?php echo $metaField['name'] ?></span></legend>
 
-			<?php if (in_array($metaField['advancedType'], ['text', 'number', 'date', 'url', 'time'])) : ?>
+			<?php if (in_array($metaField['advancedType'], ['text', 'number', 'date', 'url', 'time', 'integer'])) : ?>
 
 				<?php if (isset($metaField['prefix'])) echo $metaField['prefix'] ?>
-				<input id="<?php echo $metaKey ?>" type="<?php echo $metaField['advancedType'] ?>" name="<?php echo $metaField['inputName'] ?>" placeholder="<?php echo $metaField['placeholder'] ?: '' ?>" value="<?php echo $metaField['value'] ?>" class="<?php echo isset($metaField['class']) ? $metaField['class'] : 'regular-text' ?>" />
+				<input id="<?php echo $metaKey ?>" type="<?php echo $metaField['advancedType'] == 'integer' ? 'number' : $metaField['advancedType'] ?>" name="<?php echo $metaField['inputName'] ?>" placeholder="<?php echo $metaField['placeholder'] ?: '' ?>" value="<?php echo $metaField['value'] ?>" class="<?php echo isset($metaField['class']) ? $metaField['class'] : 'regular-text' ?>" />
 				<?php if (isset($metaField['suffix'])) echo $metaField['suffix'] ?>
 
 			<?php elseif($metaField['advancedType'] == 'editor') : ?>
