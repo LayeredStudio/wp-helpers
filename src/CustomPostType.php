@@ -16,8 +16,8 @@ final class CustomPostType {
 		$args['labels'] = $args['labels'] ?? [];
 
 		// TODO use inflector for nice name & pluralize
-		$args['labels']['singular_name'] = $args['labels']['singular_name'] ?? ucwords(str_replace(['-', '_'], ' ', $this->postType));
-		$args['labels']['name'] = $args['labels']['name'] ?? $args['labels']['singular_name'] . 's';
+		$args['labels']['singular_name'] = $args['labels']['singular_name'] ?? Inflector::humanize($this->postType);
+		$args['labels']['name'] = $args['labels']['name'] ?? Inflector::pluralize($args['labels']['singular_name']);
 
 		$labels = wp_parse_args($args['labels'], [
 			'name'					=>	$args['labels']['name'],
@@ -46,9 +46,8 @@ final class CustomPostType {
 		$taxonomy = sanitize_key($taxonomy);
 		$args['labels'] = $args['labels'] ?? [];
 
-		// TODO use inflector for nice name & pluralize
-		$args['labels']['singular_name'] = $args['labels']['singular_name'] ?? ucwords(str_replace(['-', '_'], ' ', $taxonomy));
-		$args['labels']['name'] = $args['labels']['name'] ?? $args['labels']['singular_name'] . 's';
+		$args['labels']['singular_name'] = $args['labels']['singular_name'] ?? Inflector::humanize($taxonomy);
+		$args['labels']['name'] = $args['labels']['name'] ?? Inflector::pluralize($args['labels']['singular_name']);
 
 		$labels = wp_parse_args($args['labels'], [
 			'name'				=>	$args['labels']['name'],
