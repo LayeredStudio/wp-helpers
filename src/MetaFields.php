@@ -53,6 +53,7 @@ final class MetaFields {
 		// handle post types
 		add_action('add_meta_boxes', [$this, 'addPostMetaBoxes'], 100, 2);
 		add_action('save_post', [$this, 'savePostMetaFields'], 100, 2);
+		add_action('init', [$this, 'savePostBulkEdit'], 100, 3);
 
 		// handle taxonomies
 		add_action('edited_term', [$this, 'saveTaxonomyMetaFields'], 100, 3);
@@ -99,6 +100,7 @@ final class MetaFields {
 			'suffix'			=>	'',
 			'show_in_rest'		=>	true,
 			'inputName'			=>	$metaKey,
+			'class'				=>	'',
 			'showInMetaBox'		=>	true,
 			'showInColumns'		=>	false,
 			'columnContent'		=>	null,
@@ -126,7 +128,7 @@ final class MetaFields {
 		if ($args['advancedType'] === 'post') {
 			$posts = get_posts($args['postArgs'] ?? []);
 			$args['options'] = [
-				''	=>	__(' - Select -', 'layered')
+				''	=>	$args['placeholder'] ?: __('— Select —', 'layered')
 			];
 
 			foreach ($posts as $post) {
@@ -137,7 +139,7 @@ final class MetaFields {
 		if ($args['advancedType'] === 'taxonomy') {
 			$terms = get_terms($args['termArgs'] ?? []);
 			$args['options'] = [
-				''	=>	__(' - Select -', 'layered')
+				''	=>	__('— Select —', 'layered')
 			];
 
 			foreach ($terms as $term) {
@@ -156,6 +158,7 @@ final class MetaFields {
 			$this->metaFields['post'][$postType] = [];
 			add_filter('manage_edit-' . $postType . '_columns', [$this, 'addColumns']);
 			add_filter('manage_' . $postType . '_posts_custom_column', [$this, 'addColumnContent'], 10, 2);
+			add_action('bulk_edit_custom_box', [$this, 'addBulkEditFields'], 10, 2);
 		}
 
 		$this->metaFields['post'][$postType][$metaKey] = $args;
@@ -415,6 +418,38 @@ final class MetaFields {
 		<?php
 	}
 
+	public function addBulkEditFields(string $columnName, string $postType) {
+		$metaFields = $this->metaFields['post'][$postType] ?? [];
+
+		foreach ($metaFields as $metaKey => $metaField) {
+			if ($metaField['showInBulkEdit'] && $metaKey === $columnName) {
+				$metaField['inputName'] = '_' . $metaField['inputName'];
+
+				// prepare options for bulk edit
+				if (isset($metaField['options'])) {
+					$metaField['value'] = -1;
+					$metaField['options'] = [
+						-1	=>	__('— No Change —', 'layered')
+					] + $metaField['options'];
+				}
+				?>
+				<fieldset class="inline-edit-col-right">
+					<div class="inline-edit-col">
+						<div class="inline-edit-group wp-clearfix">
+							<label class="inline-edit-que alignleft">
+								<span class="title"><?php echo $metaField['name'] ?></span>
+								<?php
+								call_user_func_array($this->fields[$metaField['advancedType']]['renderEditable'], [$metaField, $metaKey]);
+								?>
+							</label>
+						</div>
+					</div>
+				</fieldset>
+				<?php
+			}
+		}
+	}
+
 
 
 	/* 4. Render fields */
@@ -496,6 +531,22 @@ final class MetaFields {
 				delete_term_meta($termId, $metaKey);
 			}
 		}
+	}
+
+	public function savePostBulkEdit() {
+
+		if (isset($_REQUEST['bulk_edit']) && $_REQUEST['post_type'] && $_REQUEST['action'] == 'edit') {
+			$metaFields = $this->metaFields['post'][$_REQUEST['post_type']] ?? [];
+
+			foreach ($metaFields as $metaKey => $metaField) {
+				if ($metaField['showInBulkEdit'] && isset($_REQUEST['_' . $metaKey]) && $_REQUEST['_' . $metaKey] != -1) {
+					foreach ($_REQUEST['post'] as $postId) {
+						update_post_meta($postId, $metaKey, $_REQUEST['_' . $metaKey]);
+					}
+				}
+			}
+		}
+
 	}
 
 
