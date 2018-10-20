@@ -5,6 +5,7 @@ final class MetaFields {
 
 	protected static $_instance = null;
 
+	protected $fields = [];
 	protected $metaFields = [
 		'post'	=>	[],
 		'term'	=>	[],
@@ -14,7 +15,7 @@ final class MetaFields {
 	/**
 	 * Main MetaFields Instance. Ensures only one instance of MetaFields is loaded or can be loaded.
 	 */
-	public static function instance() {
+	public static function instance(): self {
 		if (is_null(self::$_instance)) {
 			self::$_instance = new self();
 		}
@@ -38,6 +39,9 @@ final class MetaFields {
 	protected function __construct() {
 		global $pagenow;
 
+		// register meta field types
+		$this->fields = array_map([$this, 'prepareFieldTypes'], apply_filters('meta_field_types', []));
+
 		if (in_array($pagenow, ['term.php', 'edit-tags.php'])) {
 			wp_enqueue_media();
 		}
@@ -57,32 +61,30 @@ final class MetaFields {
 	}
 
 
+	public function prepareFieldTypes(array $field): array {
+
+		$field = wp_parse_args($field, [
+			'name'				=>	'Field',
+			'type'				=>	'string',
+			'renderValue'		=>	function($obj) {
+				return $obj;
+			},
+			'renderReadable'	=>	function($obj) {
+				return $obj;
+			}
+		]);
+
+		return $field;
+	}
+
+
 	/* 1. Register meta fields */
 
 	protected function prepareMetaArgs(string $metaKey, array $args = []): array {
 
 		if (!isset($args['name']) || !strlen($args['name'])) {
-			_doing_it_wrong(__FUNCTION__, sprintf(__('Field "%s" is required when registering a custom meta field', 'layered'), 'name'), null);
+			_doing_it_wrong(__FUNCTION__, sprintf(__('Field "%s" is required when registering a custom meta field', 'layered'), $args['name']), null);
 		}
-
-		// In 4.7 one of 'string', 'boolean', 'integer', 'number' must be used as 'type'.
-		$basicTypes = [
-			'text'			=>	'string',
-			'editor'		=>	'string',
-			'json'			=>	'string',
-			'select'		=>	'string',
-			'radio'			=>	'string',
-			'date'			=>	'string',
-			'url'			=>	'string',
-			'time'			=>	'string',
-			'color'			=>	'string',
-			'post'			=>	'integer',
-			'taxonomy'		=>	'integer',
-			'attachment'	=>	'integer',
-			'posts'			=>	'integer',
-			'checkbox'		=>	'boolean',
-			'custom'		=>	'string'
-		];
 
 		$args = wp_parse_args($args, [
 			'type'				=>	'text',
@@ -104,10 +106,12 @@ final class MetaFields {
 			'showInBulkEdit'	=>	false
 		]);
 
-		$args['advancedType'] = $args['type'];
-		if (isset($basicTypes[$args['type']])) {
-			$args['type'] = $basicTypes[$args['type']];
+		if (!isset($this->fields[$args['type']])) {
+			_doing_it_wrong(__FUNCTION__, sprintf(__('Field type "%s" is not available as meta field', 'layered'), $args['type']), null);
 		}
+
+		$args['advancedType'] = $args['type'];
+		$args['type'] = $this->fields[$args['type']]['type'];
 
 		if (!$args['single']) {
 			$args['inputName'] .= '[]';
@@ -233,20 +237,13 @@ final class MetaFields {
 
 		foreach ($metaFields as $metaKey => $metaField) {
 			if ($metaField['showInColumns'] && $metaKey === $columnName) {
-				$content = $this->getMeta($metaType, $metaField, $objId, $metaKey);
+				$metaValue = $this->getMeta($metaType, $metaField, $objId, $metaKey);
 
 				if (is_callable($metaField['columnContent'])) {
-					$content = call_user_func_array($metaField['columnContent'], [$content, $metaKey, $metaField]);
+					$content = call_user_func_array($metaField['columnContent'], [$metaValue, $metaKey, $metaField]);
 				} else {
-					if ($metaField['advancedType'] === 'checkbox') {
-						$content = $content ? __('Yes', 'layered') : __('No', 'layered');
-					} elseif ($metaField['advancedType'] === 'attachment') {
-						$content = $content ? wp_get_attachment_image($content->ID, [50, 50], strpos($content->post_mime_type, 'image') === false, ['class' => 'attachment-preview']) : '';
-					} elseif ($metaField['advancedType'] === 'post') {
-						$content = $content ? $content->post_title : '';
-					} elseif ($metaField['advancedType'] === 'json') {
-						$content = $content ? json_encode($content, JSON_PRETTY_PRINT) : '';
-					}
+					$content = call_user_func_array($this->fields[$metaField['advancedType']]['renderReadable'], [$metaValue, $metaKey, $metaField]);
+					$content = $metaField['prefix'] . $content . $metaField['suffix'];
 				}
 			}
 		}
@@ -431,86 +428,16 @@ final class MetaFields {
 		<fieldset>
 			<legend class="screen-reader-text"><span><?php echo $metaField['name'] ?></span></legend>
 
-			<?php if (in_array($metaField['advancedType'], ['text', 'number', 'date', 'url', 'time', 'integer'])) : ?>
-
-				<?php if (isset($metaField['prefix'])) echo $metaField['prefix'] ?>
-				<input id="<?php echo $metaKey ?>" type="<?php echo $metaField['advancedType'] == 'integer' ? 'number' : $metaField['advancedType'] ?>" name="<?php echo $metaField['inputName'] ?>" placeholder="<?php echo $metaField['placeholder'] ?: '' ?>" value="<?php echo $metaField['value'] ?>" class="<?php echo isset($metaField['class']) ? $metaField['class'] : 'regular-text' ?>" />
-				<?php if (isset($metaField['suffix'])) echo $metaField['suffix'] ?>
-
-			<?php elseif($metaField['advancedType'] == 'editor') : ?>
-
-				<?php wp_editor($metaField['value'], $metaKey, ['textarea_name' => $metaField['inputName'], 'media_buttons' => false, 'textarea_rows' => 10, 'teeny' => true]) ?>
-
-			<?php elseif(in_array($metaField['advancedType'], ['select', 'post', 'taxonomy'])) : ?>
-
-				<select id="<?php echo $metaKey ?>" name="<?php echo $metaField['inputName'] ?>" class="<?php echo isset($metaField['class']) ? $metaField['class'] : 'regular-text' ?>">
-					<?php foreach( $metaField['options'] as $option_key => $option_value ) : ?>
-						<option <?php selected( $option_key, $metaField['value'] ) ?> value="<?php echo $option_key ?>"><?php echo $option_value ?></option>
-					<?php endforeach ?>
-				</select>
-
-			<?php elseif( 'posts' == $metaField['advancedType'] ) : ?>
-
-				<select id="<?php echo $metaKey ?>" name="<?php echo $metaField['inputName'] ?>">
-					<?php
-					$posts = get_posts($metaField['args']);
-					?>
-
-					<option value="0"><?php _e(' - Select -') ?></option>
-
-					<?php foreach($posts as $post ) : ?>
-						<option <?php selected($post->ID, $metaField['value']) ?> value="<?php echo $post->ID ?>"><?php echo $post->post_title ?></option>
-					<?php endforeach ?>
-				</select>
-
-			<?php elseif (in_array($metaField['advancedType'], ['radio', 'checkbox'])) : ?>
-
-				<?php foreach ($metaField['options'] as $key => $label) : ?>
-					<label>
-						<input type="<?php echo $metaField['advancedType'] ?>" id="<?php echo $metaKey ?>" name="<?php echo $metaField['inputName'] ?>" value="<?php echo $key ?>" <?php echo $metaField['value'] == $key ? 'checked' : '' ?> />
-						<?php echo $label ?>
-					</label><br>
-				<?php endforeach ?>
-
-			<?php elseif( 'attachment' == $metaField['advancedType'] ) : ?>
-
-				<?php
-				$caption = '<small><i>No caption</i></small>';
-
-				if ($metaField['value']) {
-					$attachment = get_post($metaField['value']);
-
-					if ($attachment) {
-						$caption = $attachment->post_excerpt ?: $caption;
-						$thumb = wp_get_attachment_image_src($attachment->ID, [100, 100], strpos($attachment->post_mime_type, 'image') === false)[0];
-					} else {
-						$thumb = 'http://placehold.jp/ededed/9e9e9e/100x100.jpg?text=Missing Media';
-					}
-				} else {
-					$thumb = 'http://placehold.jp/ededed/9e9e9e/100x100.jpg?text=%2B';
-					$caption = '&nbsp;';
-				}
-				?>
-
-				<img id="<?php echo $metaKey ?>" <?php if ($metaField['value']) echo 'data-attachment-id="' . $metaField['value'] . '"' ?> class="js-layered-open-media attachment-preview" src="<?php echo $thumb ?>" height="100" alt="Select" />
-				<p class="caption"><?php echo $caption ?></p>
-
-				<!--<button class="js-layered-open-media button button-small">Choose media</button>-->
-				<input type="hidden" name="<?php echo $metaField['inputName'] ?>" value="<?php echo $metaField['value'] ?>" />
-
-			<?php elseif ($metaField['advancedType'] == 'custom') : ?>
-
-				<?php call_user_func($metaField['render']) ?>
-
-			<?php endif ?>
-
+			<?php
+			call_user_func_array($this->fields[$metaField['advancedType']]['renderEditable'], [$metaField, $metaKey]);
+			?>
 
 			<?php if (!$metaField['single']) : ?>
 				<button class="button button-small btn-multiple-remove js-multiple-remove">-</button>
 			<?php endif ?>
 
 
-			<?php if (isset($metaField['description'])) : ?>
+			<?php if ($metaField['description']) : ?>
 				<p class="description"><?php echo $metaField['description'] ?></p>
 			<?php endif ?>
 
@@ -579,10 +506,10 @@ final class MetaFields {
 		$metaValue = get_metadata($metaType, $id, $metaKey, $metaField['single']);
 
 		if ($metaField['single']) {
-			$metaValue = $this->renderValue($metaField, $metaValue);
+			$metaValue = call_user_func_array($this->fields[$metaField['advancedType']]['renderValue'], [$metaValue, $metaField]);
 		} else {
 			$metaValue = array_map(function($value) use($metaField) {
-				return $this->renderValue($metaField, $value);
+				return call_user_func_array($this->fields[$metaField['advancedType']]['renderValue'], [$value, $metaField]);
 			}, $metaValue);
 		}
 
@@ -608,22 +535,6 @@ final class MetaFields {
 
 		return $this->getMeta('user', $metaField, $userId, $metaKey);
 	}
-
-	public function renderValue(array $metaField, $value) {
-
-		if (in_array($metaField['advancedType'], ['attachment', 'post']) && $value) {
-			$value = get_post($value);
-		} elseif ($metaField['advancedType'] === 'json') {
-			$value = $value ? json_decode($value, true) : null;
-		} elseif ($metaField['advancedType'] === 'select') {
-			$value = $metaField['options'][$value] ?? null;
-		} elseif ($metaField['advancedType'] === 'checkbox') {
-			$value = !!$value;
-		}
-
-		return $value;
-	}
-
 
 
 	public function adminHeadAssets() {
@@ -729,6 +640,183 @@ final class MetaFields {
 
 }
 
-function metaFields() {
-	return MetaFields::instance();
-}
+
+
+add_filter('meta_field_types', function(array $fields): array {
+
+	// WP types
+	// 'string', 'boolean', 'integer', 'number'
+
+	// Basic fields
+
+	$fields['text'] = [
+		'name'				=>	'Text',
+		'type'				=>	'string',
+		'sanitize_callback'	=>	'sanitize_text_field',
+		'renderEditable'	=>	function(array $metaField, string $metaKey) {
+			echo $metaField['prefix'];
+			?>
+			<input id="<?php echo $metaKey ?>" type="text" name="<?php echo $metaField['inputName'] ?>" placeholder="<?php echo $metaField['placeholder'] ?>" value="<?php echo $metaField['value'] ?>" class="<?php echo $metaField['class'] ?>" />
+			<?
+			echo $metaField['suffix'];
+		}
+	];
+
+	$fields['number'] = [
+		'name'				=>	'Number',
+		'type'				=>	'number',
+		'renderEditable'	=>	function(array $metaField, string $metaKey) {
+			echo $metaField['prefix'];
+			?>
+			<input id="<?php echo $metaKey ?>" type="number" name="<?php echo $metaField['inputName'] ?>" placeholder="<?php echo $metaField['placeholder'] ?>" value="<?php echo $metaField['value'] ?>" class="<?php echo $metaField['class'] ?>" />
+			<?
+			echo $metaField['suffix'];
+		}
+	];
+
+	$fields['url'] = [
+		'name'				=>	'URL',
+		'type'				=>	'string',
+		'renderEditable'	=>	function(array $metaField, string $metaKey) {
+			echo $metaField['prefix'];
+			?>
+			<input id="<?php echo $metaKey ?>" type="url" name="<?php echo $metaField['inputName'] ?>" placeholder="<?php echo $metaField['placeholder'] ?>" value="<?php echo $metaField['value'] ?>" class="<?php echo $metaField['class'] ?>" />
+			<?
+			echo $metaField['suffix'];
+		}
+	];
+
+	$fields['checkbox'] = [
+		'name'				=>	'Checkbox',
+		'type'				=>	'boolean',
+		'renderValue'		=>	function($metaValue): bool {
+			return !!$metaValue;
+		},
+		'renderReadable'	=>	function($metaValue) {
+			return $metaValue ? __('Yes', 'layered') : __('No', 'layered');
+		},
+		'renderEditable'	=>	function(array $metaField, string $metaKey) {
+			foreach ($metaField['options'] as $key => $label) : ?>
+				<label>
+					<input type="<?php echo $metaField['advancedType'] ?>" id="<?php echo $metaKey ?>" name="<?php echo $metaField['inputName'] ?>" value="<?php echo $key ?>" <?php checked($key, $metaField['value']) ?> />
+					<?php echo $label ?>
+				</label>
+				<br>
+			<?php endforeach;
+		}
+	];
+
+	$fields['radio'] = [
+		'name'				=>	'Radio',
+		'type'				=>	'string',
+		'renderValue'		=>	function($metaValue): bool {
+			return $metaField['options'][$metaValue] ?? null;
+		},
+		'renderEditable'	=>	function(array $metaField, string $metaKey) {
+			foreach ($metaField['options'] as $key => $label) : ?>
+				<label>
+					<input type="<?php echo $metaField['advancedType'] ?>" id="<?php echo $metaKey ?>" name="<?php echo $metaField['inputName'] ?>" value="<?php echo $key ?>" <?php checked($key, $metaField['value']) ?> />
+					<?php echo $label ?>
+				</label>
+				<br>
+			<?php endforeach;
+		}
+	];
+
+	$fields['select'] = [
+		'name'				=>	'Select',
+		'type'				=>	'string',
+		'renderValue'		=>	function($metaValue, $metaField) {
+			return $metaField['options'][$metaValue] ?? null;
+		},
+		'renderEditable'	=>	function(array $metaField, string $metaKey) {
+			?>
+			<select id="<?php echo $metaKey ?>" name="<?php echo $metaField['inputName'] ?>" class="<?php echo $metaField['class'] ?>">
+				<?php foreach($metaField['options'] as $optionKey => $optionValue) : ?>
+					<option <?php selected($optionKey, $metaField['value']) ?> value="<?php echo $optionKey ?>"><?php echo $optionValue ?></option>
+				<?php endforeach ?>
+			</select>
+			<?php
+		}
+	];
+
+
+	// Complex fields
+
+	$fields['post'] = [
+		'name'				=>	'Post',
+		'type'				=>	'integer',
+		'renderValue'		=>	function($metaValue) {
+			return $metaValue ? get_post($metaValue) : null;
+		},
+		'renderReadable'	=>	function($metaValue) {
+			return $metaValue ? $metaValue->post_title : '';
+		},
+		'renderEditable'	=>	function(array $metaField, string $metaKey) {
+			?>
+			<select id="<?php echo $metaKey ?>" name="<?php echo $metaField['inputName'] ?>" class="<?php echo $metaField['class'] ?>">
+				<?php foreach($metaField['options'] as $optionKey => $optionValue) : ?>
+					<option <?php selected($optionKey, $metaField['value']) ?> value="<?php echo $optionKey ?>"><?php echo $optionValue ?></option>
+				<?php endforeach ?>
+			</select>
+			<?php
+		}
+	];
+
+	$fields['attachment'] = [
+		'name'				=>	'Media',
+		'type'				=>	'integer',
+		'renderValue'		=>	function($metaValue) {
+			return get_post($metaValue);
+		},
+		'renderReadable'	=>	function($metaValue) {
+			return $metaValue ? wp_get_attachment_image($metaValue->ID, [50, 50], strpos($metaValue->post_mime_type, 'image') === false, ['class' => 'attachment-preview']) : '';
+		},
+		'renderEditable'	=>	function(array $metaField, string $metaKey) {
+			$caption = '<small><i>No caption</i></small>';
+
+			if ($metaField['value']) {
+				$attachment = get_post($metaField['value']);
+
+				if ($attachment) {
+					$caption = $attachment->post_excerpt ?: $caption;
+					$thumb = wp_get_attachment_image_src($attachment->ID, [100, 100], strpos($attachment->post_mime_type, 'image') === false)[0];
+				} else {
+					$thumb = 'http://placehold.jp/ededed/9e9e9e/100x100.jpg?text=Missing Media';
+				}
+			} else {
+				$thumb = 'http://placehold.jp/ededed/9e9e9e/100x100.jpg?text=%2B';
+				$caption = '&nbsp;';
+			}
+			?>
+
+			<img id="<?php echo $metaKey ?>" <?php if ($metaField['value']) echo 'data-attachment-id="' . $metaField['value'] . '"' ?> class="js-layered-open-media attachment-preview" src="<?php echo $thumb ?>" height="100" alt="Select" />
+			<p class="caption"><?php echo $caption ?></p>
+
+			<!--<button class="js-layered-open-media button button-small">Choose media</button>-->
+			<input type="hidden" name="<?php echo $metaField['inputName'] ?>" value="<?php echo $metaField['value'] ?>" />
+			<?php
+		}
+	];
+
+	$fields['editor'] = [
+		'name'				=>	'Editor',
+		'type'				=>	'string',
+		'renderEditable'	=>	function(array $metaField, string $metaKey) {
+			wp_editor($metaField['value'], $metaKey, ['textarea_name' => $metaField['inputName'], 'media_buttons' => false, 'textarea_rows' => 10, 'teeny' => true]);
+		}
+	];
+
+	$fields['json'] = [
+		'name'				=>	'JSON',
+		'type'				=>	'string',
+		'renderValue'		=>	function($metaValue) {
+			return $metaValue ? json_decode($metaValue, true) : null;
+		},
+		'renderReadable'	=>	function($metaValue) {
+			return $metaValue ? json_encode($metaValue, JSON_PRETTY_PRINT) : '';
+		}
+	];
+
+	return $fields;
+});
