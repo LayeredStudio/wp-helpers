@@ -5,6 +5,10 @@ require 'vendor/autoload.php';
 use Layered\Wp\CustomPostType;
 
 
+if (!function_exists('add_action')) {
+	die('This file needs to be included in a WordPress plugin or theme');
+}
+
 add_action('init', function() {
 
 	// Add a custom post type

@@ -67,6 +67,7 @@ final class MetaFields {
 		$field = wp_parse_args($field, [
 			'name'				=>	'Field',
 			'type'				=>	'string',
+			'sanitize_callback'	=>	null,
 			'renderValue'		=>	function($obj) {
 				return $obj;
 			},
@@ -84,9 +85,14 @@ final class MetaFields {
 	/* 1. Register meta fields */
 
 	protected function prepareMetaArgs(string $metaKey, array $args = []): array {
+		$args['type'] = $args['type'] ?? 'text';
 
 		if (!isset($args['name']) || !strlen($args['name'])) {
 			_doing_it_wrong(__FUNCTION__, sprintf(__('Field "%s" is required when registering a custom meta field', 'layered'), $args['name']), null);
+		}
+
+		if (!isset($this->fields[$args['type']])) {
+			_doing_it_wrong(__FUNCTION__, sprintf(__('Field type "%s" is not available as meta field', 'layered'), $args['type']), null);
 		}
 
 		$args = wp_parse_args($args, [
@@ -94,6 +100,7 @@ final class MetaFields {
 			'description'		=>	'',
 			'group'				=>	__('Meta Fields', 'layered'),
 			'single'			=>	true,
+			'sanitize_callback'	=>	$this->fields[$args['type']]['sanitize_callback'],
 			'defaultValue'		=>	null,
 			'initialValue'		=>	null,
 			'value'				=>	'',
@@ -109,10 +116,6 @@ final class MetaFields {
 			'showInQuickEdit'	=>	false,
 			'showInBulkEdit'	=>	false
 		]);
-
-		if (!isset($this->fields[$args['type']])) {
-			_doing_it_wrong(__FUNCTION__, sprintf(__('Field type "%s" is not available as meta field', 'layered'), $args['type']), null);
-		}
 
 		$args['advancedType'] = $args['type'];
 		$args['type'] = $this->fields[$args['type']]['type'];
@@ -489,12 +492,19 @@ final class MetaFields {
 					delete_post_meta($post->ID, $metaKey);
 
 					foreach ($_POST[$metaKey] as $i => $value) {
+						if ($metaField['sanitize_callback']) {
+							$value = call_user_func($metaField['sanitize_callback'], $value);
+						}
 						if (strlen($value)) {
 							add_post_meta($post->ID, $metaKey, $value);
 						}
 					}
 				} else {
-					update_post_meta($post->ID, $metaKey, $_POST[$metaKey]);
+					$value = $_POST[$metaKey];
+					if ($metaField['sanitize_callback']) {
+						$value = call_user_func($metaField['sanitize_callback'], $value);
+					}
+					update_post_meta($post->ID, $metaKey, $value);
 				}
 			} else {
 				delete_post_meta($post->ID, $metaKey);
@@ -513,12 +523,19 @@ final class MetaFields {
 					delete_term_meta($termId, $metaKey);
 
 					foreach ($_POST[$metaKey] as $i => $value) {
+						if ($metaField['sanitize_callback']) {
+							$value = call_user_func($metaField['sanitize_callback'], $value);
+						}
 						if (strlen($value)) {
 							add_term_meta($termId, $metaKey, $value);
 						}
 					}
 				} else {
-					update_term_meta($termId, $metaKey, $_POST[$metaKey]);
+					$value = $_POST[$metaKey];
+					if ($metaField['sanitize_callback']) {
+						$value = call_user_func($metaField['sanitize_callback'], $value);
+					}
+					update_term_meta($termId, $metaKey, $value);
 				}
 			} else {
 				delete_term_meta($termId, $metaKey);
@@ -534,7 +551,11 @@ final class MetaFields {
 			foreach ($metaFields as $metaKey => $metaField) {
 				if ($metaField['showInBulkEdit'] && isset($_REQUEST['_' . $metaKey]) && strlen($_REQUEST['_' . $metaKey]) && $_REQUEST['_' . $metaKey] != -1) {
 					foreach ($_REQUEST['post'] as $postId) {
-						update_post_meta($postId, $metaKey, $_REQUEST['_' . $metaKey]);
+						$value = $_REQUEST['_' . $metaKey];
+						if ($metaField['sanitize_callback']) {
+							$value = call_user_func($metaField['sanitize_callback'], $value);
+						}
+						update_post_meta($postId, $metaKey, $value);
 					}
 				}
 			}
@@ -761,6 +782,7 @@ add_filter('meta_field_types', function(array $fields): array {
 	$fields['url'] = [
 		'name'						=>	__('URL', 'layered'),
 		'type'						=>	'string',
+		'sanitize_callback'			=>	'esc_url_raw',
 		'renderEditableField'		=>	[MetaFields::class, 'editableTextField'],
 		'renderEditableFieldBulk'	=>	[MetaFields::class, 'bulkEditableTextField']
 	];
@@ -814,7 +836,7 @@ add_filter('meta_field_types', function(array $fields): array {
 		'name'				=>	__('Attachment', 'layered'),
 		'type'				=>	'integer',
 		'renderValue'		=>	function($metaValue) {
-			return get_post($metaValue);
+			return $metaValue ? get_post($metaValue) : null;
 		},
 		'renderReadable'	=>	function($metaValue) {
 			return $metaValue ? wp_get_attachment_image($metaValue->ID, [50, 50], strpos($metaValue->post_mime_type, 'image') === false, ['class' => 'attachment-preview']) : '';

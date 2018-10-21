@@ -15,7 +15,6 @@ final class CustomPostType {
 		$this->postType = sanitize_key($postType);
 		$args['labels'] = $args['labels'] ?? [];
 
-		// TODO use inflector for nice name & pluralize
 		$args['labels']['singular_name'] = $args['labels']['singular_name'] ?? Inflector::humanize($this->postType);
 		$args['labels']['name'] = $args['labels']['name'] ?? Inflector::pluralize($args['labels']['singular_name']);
 
