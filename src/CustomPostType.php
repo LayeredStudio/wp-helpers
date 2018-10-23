@@ -193,7 +193,7 @@ final class CustomPostType {
 
 	function addMetaField(string $metaKey, array $args): self {
 
-		MetaFields::instance()->addPostMeta($this->postType, $metaKey, $args);
+		mf()->addPostMeta($this->postType, $metaKey, $args);
 
 		return $this;
 	}
