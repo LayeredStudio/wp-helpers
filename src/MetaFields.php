@@ -602,18 +602,18 @@ final class MetaFields {
 		return $metaValue;
 	}
 
-	public function getPostMeta(int $postId, string $metaKey) {
-		$post = get_post($postId);
+	public function getPostMeta($post, string $metaKey) {
+		$post = get_post($post);
 		$metaField = $this->metaFields['post'][$post->post_type][$metaKey];
 
-		return $this->getMeta('post', $metaField, $postId, $metaKey);
+		return $this->getMeta('post', $metaField, $post->ID, $metaKey);
 	}
 
-	public function getTermMeta(int $termId, string $metaKey) {
-		$term = get_term($termId);
+	public function getTermMeta($term, string $metaKey) {
+		$term = get_term($term);
 		$metaField = $this->metaFields['term'][$term->taxonomy][$metaKey];
-		
-		return $this->getMeta('term', $metaField, $termId, $metaKey);
+
+		return $this->getMeta('term', $metaField, $term->term_id, $metaKey);
 	}
 
 	public function getUserMeta(int $userId, string $metaKey) {
