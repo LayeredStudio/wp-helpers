@@ -13,7 +13,7 @@ final class MetaFields {
 	];
 
 	/**
-	 * Main MetaFields Instance. Ensures only one instance of MetaFields is loaded or can be loaded.
+	 * Main MetaFields Instance. Ensures only one instance of MetaFields can be loaded.
 	 */
 	public static function instance(): self {
 		if (is_null(self::$_instance)) {
@@ -74,8 +74,9 @@ final class MetaFields {
 			'renderReadable'	=>	function($obj) {
 				return $obj;
 			},
-			'renderEditableField'		=>	null,
-			'renderEditableFieldBulk'	=>	null
+			'renderEditableField'		=>	[MetaFields::class, 'notEditable'],
+			'renderEditableFieldBulk'	=>	null,
+			'prepareMetaArgs'			=>	null
 		]);
 
 		return $field;
@@ -124,32 +125,8 @@ final class MetaFields {
 			$args['inputName'] .= '[]';
 		}
 
-		if ($args['advancedType'] === 'checkbox') {
-			$args['options'] = [
-				1	=>	$args['placeholder'] ?: $args['name']
-			];
-		}
-
-		if ($args['advancedType'] === 'post') {
-			$posts = get_posts($args['postArgs'] ?? []);
-			$args['options'] = [
-				''	=>	$args['placeholder'] ?: __('— Select —', 'layered')
-			];
-
-			foreach ($posts as $post) {
-				$args['options'][$post->ID] = $post->post_title;
-			}
-		}
-
-		if ($args['advancedType'] === 'taxonomy') {
-			$terms = get_terms($args['termArgs'] ?? []);
-			$args['options'] = [
-				''	=>	__('— Select —', 'layered')
-			];
-
-			foreach ($terms as $term) {
-				$args['options'][$term->term_id] = $term->name;
-			}
+		if (is_callable($this->fields[$args['advancedType']]['prepareMetaArgs'])) {
+			$args = call_user_func_array($this->fields[$args['advancedType']]['prepareMetaArgs'], [$args, $metaKey]);
 		}
 
 		return apply_filters('meta_fields_args', $args, $metaKey);
@@ -276,26 +253,22 @@ final class MetaFields {
 		$metaFieldsByGroup = [];
 
 		foreach ($metaFields as $metaKey => $metaField) {
-			if (!isset($metaFieldsByGroup[$metaField['group']])) {
-				$metaFieldsByGroup[$metaField['group']] = [];
-			}
-
 			if ($metaField['showInMetaBox']) {
+				if (!isset($metaFieldsByGroup[$metaField['group']])) {
+					$metaFieldsByGroup[$metaField['group']] = [];
+				}
+
 				$metaFieldsByGroup[$metaField['group']][$metaKey] = $metaField;
 			}
 		}
 
 		foreach ($metaFieldsByGroup as $groupName => $metaFields) {
-			if (count($metaFields)) {
-				add_meta_box(sanitize_title($groupName), $groupName, [$this, 'displayPostMetaBox'], $postType, $context = 'advanced', $priority = 'default', $metaFields);
-			}
+			add_meta_box(sanitize_title($groupName), $groupName, [$this, 'displayPostMetaBox'], $postType, $context = 'advanced', $priority = 'default', $metaFields);
 		}
 	}
 
 	public function displayPostMetaBox(\WP_Post $post, array $args) {
 		$metaFields = $args['args'];
-		$cf = get_post_meta($post->ID);
-
 		wp_nonce_field('layeredPostMetaBoxes', 'layeredPostMetaBoxesNonce');
 		?>
 
@@ -304,10 +277,7 @@ final class MetaFields {
 
 				<?php
 				foreach ($metaFields as $metaKey => $field) {
-					$field['value'] = $cf[$metaKey] ?? null;
-					if ($field['single'] && is_array($field['value'])) {
-						$field['value'] = array_shift($field['value']);
-					}
+					$field['value'] = get_post_meta($post->ID, $metaKey, $field['single']);
 					?>
 
 					<tr class="field-<?php echo esc_attr($metaKey) ?> field-type-<?php echo esc_attr($field['advancedType']) ?> field-type-<?php echo esc_attr($field['single'] ? 'single' : 'multiple') ?>">
@@ -355,14 +325,10 @@ final class MetaFields {
 			return;
 		}
 
-		$cf = get_term_meta($term->term_id);
 		wp_nonce_field('layeredTermMetaBoxes', 'layeredTermMetaBoxesNonce');
 
 		foreach ($metaFields as $metaKey => $metaField) :
-			$metaField['value'] = $cf[$metaKey] ?? null;
-			if ($metaField['single'] && is_array($metaField['value'])) {
-				$metaField['value'] = array_shift($metaField['value']);
-			}
+			$metaField['value'] = get_term_meta($term->term_id, $metaKey, $metaField['single']);
 			?>
 			<tr class="form-field term-slug-wrap">
 				<th scope="row">
@@ -474,6 +440,61 @@ final class MetaFields {
 
 		</fieldset>
 
+		<?php
+	}
+
+	public static function notEditable(array $metaField, string $metaKey) {
+		?>
+		<input id="<?php echo $metaKey ?>" type="text" placeholder="<?php echo esc_attr_e('Field not editable', 'layered') ?>" disabled />
+		<?php
+	}
+
+	public static function editableTextField(array $metaField, string $metaKey) {
+		echo $metaField['prefix'];
+		?>
+		<input id="<?php echo $metaKey ?>" type="<?php echo $metaField['advancedType'] ?>" name="<?php echo $metaField['inputName'] ?>" placeholder="<?php echo $metaField['placeholder'] ?>" value="<?php echo $metaField['value'] ?>" class="<?php echo $metaField['class'] ?>" />
+		<?php
+		echo $metaField['suffix'];
+	}
+
+	public static function editableCheckboxField(array $metaField, string $metaKey) {
+		foreach ($metaField['options'] as $key => $label) : ?>
+			<label>
+				<input type="<?php echo $metaField['advancedType'] ?>" id="<?php echo $metaKey ?>" name="<?php echo $metaField['inputName'] ?>" value="<?php echo $key ?>" <?php checked($key, $metaField['value']) ?> />
+				<?php echo $label ?>
+			</label>
+			<br>
+		<?php endforeach;
+	}
+
+	public static function editableSelectField(array $metaField, string $metaKey) {
+		?>
+		<select id="<?php echo $metaKey ?>" name="<?php echo $metaField['inputName'] ?>" class="<?php echo $metaField['class'] ?>">
+			<?php foreach($metaField['options'] as $optionKey => $optionValue) : ?>
+				<option <?php selected($optionKey, $metaField['value']) ?> value="<?php echo $optionKey ?>"><?php echo $optionValue ?></option>
+			<?php endforeach ?>
+		</select>
+		<?php
+	}
+
+	public static function bulkEditableTextField(array $metaField, string $metaKey) {
+		echo $metaField['prefix'];
+		?>
+		<input id="<?php echo $metaKey ?>" type="<?php echo $metaField['advancedType'] ?>" name="_<?php echo $metaField['inputName'] ?>" placeholder="<?php echo __('No change') ?>" />
+		<?
+		echo $metaField['suffix'];
+	}
+
+	public static function bulkEditableSelectField(array $metaField, string $metaKey) {
+		$metaField['options'] = [
+			-1	=>	__('— No Change —', 'layered')
+		] + $metaField['options'];
+		?>
+		<select id="<?php echo $metaKey ?>" name="_<?php echo $metaField['inputName'] ?>" class="<?php echo $metaField['class'] ?>">
+			<?php foreach($metaField['options'] as $optionKey => $optionValue) : ?>
+				<option value="<?php echo $optionKey ?>"><?php echo $optionValue ?></option>
+			<?php endforeach ?>
+		</select>
 		<?php
 	}
 
@@ -703,56 +724,6 @@ final class MetaFields {
 		<?php
 	}
 
-
-	public static function editableTextField(array $metaField, string $metaKey) {
-		echo $metaField['prefix'];
-		?>
-		<input id="<?php echo $metaKey ?>" type="<?php echo $metaField['advancedType'] ?>" name="<?php echo $metaField['inputName'] ?>" placeholder="<?php echo $metaField['placeholder'] ?>" value="<?php echo $metaField['value'] ?>" class="<?php echo $metaField['class'] ?>" />
-		<?
-		echo $metaField['suffix'];
-	}
-
-	public static function editableCheckboxField(array $metaField, string $metaKey) {
-		foreach ($metaField['options'] as $key => $label) : ?>
-			<label>
-				<input type="<?php echo $metaField['advancedType'] ?>" id="<?php echo $metaKey ?>" name="<?php echo $metaField['inputName'] ?>" value="<?php echo $key ?>" <?php checked($key, $metaField['value']) ?> />
-				<?php echo $label ?>
-			</label>
-			<br>
-		<?php endforeach;
-	}
-
-	public static function editableSelectField(array $metaField, string $metaKey) {
-		?>
-		<select id="<?php echo $metaKey ?>" name="<?php echo $metaField['inputName'] ?>" class="<?php echo $metaField['class'] ?>">
-			<?php foreach($metaField['options'] as $optionKey => $optionValue) : ?>
-				<option <?php selected($optionKey, $metaField['value']) ?> value="<?php echo $optionKey ?>"><?php echo $optionValue ?></option>
-			<?php endforeach ?>
-		</select>
-		<?php
-	}
-
-	public static function bulkEditableTextField(array $metaField, string $metaKey) {
-		echo $metaField['prefix'];
-		?>
-		<input id="<?php echo $metaKey ?>" type="<?php echo $metaField['advancedType'] ?>" name="_<?php echo $metaField['inputName'] ?>" placeholder="<?php echo __('No change') ?>" />
-		<?
-		echo $metaField['suffix'];
-	}
-
-	public static function bulkEditableSelectField(array $metaField, string $metaKey) {
-		$metaField['options'] = [
-			-1	=>	__('— No Change —', 'layered')
-		] + $metaField['options'];
-		?>
-		<select id="<?php echo $metaKey ?>" name="_<?php echo $metaField['inputName'] ?>" class="<?php echo $metaField['class'] ?>">
-			<?php foreach($metaField['options'] as $optionKey => $optionValue) : ?>
-				<option value="<?php echo $optionKey ?>"><?php echo $optionValue ?></option>
-			<?php endforeach ?>
-		</select>
-		<?php
-	}
-
 }
 
 
@@ -794,7 +765,14 @@ add_filter('meta_field_types', function(array $fields): array {
 		'renderReadable'		=>	function($metaValue) {
 			return $metaValue ? __('Yes', 'layered') : __('No', 'layered');
 		},
-		'renderEditableField'	=>	[MetaFields::class, 'editableCheckboxField']
+		'renderEditableField'	=>	[MetaFields::class, 'editableCheckboxField'],
+		'prepareMetaArgs'		=>	function(array $args, string $metaKey): array {
+			$args['options'] = [
+				1	=>	$args['placeholder'] ?: $args['name']
+			];
+
+			return $args;
+		}
 	];
 
 	$fields['radio'] = [
@@ -829,7 +807,69 @@ add_filter('meta_field_types', function(array $fields): array {
 			return $metaValue ? $metaValue->post_title : '';
 		},
 		'renderEditableField'		=>	[MetaFields::class, 'editableSelectField'],
-		'renderEditableFieldBulk'	=>	[MetaFields::class, 'bulkEditableSelectField']
+		'renderEditableFieldBulk'	=>	[MetaFields::class, 'bulkEditableSelectField'],
+		'prepareMetaArgs'			=>	function(array $args, string $metaKey): array {
+			$posts = get_posts($args['postArgs'] ?? []);
+			$args['options'] = [
+				''	=>	$args['placeholder'] ?: __('— Select —', 'layered')
+			];
+
+			foreach ($posts as $post) {
+				$args['options'][$post->ID] = $post->post_title;
+			}
+
+			return $args;
+		}
+	];
+
+	$fields['term'] = [
+		'name'						=>	__('Term', 'layered'),
+		'type'						=>	'integer',
+		'renderValue'				=>	function($metaValue) {
+			return $metaValue ? get_post($metaValue) : null;
+		},
+		'renderReadable'			=>	function($metaValue) {
+			return $metaValue ? $metaValue->post_title : '';
+		},
+		'renderEditableField'		=>	[MetaFields::class, 'editableSelectField'],
+		'renderEditableFieldBulk'	=>	[MetaFields::class, 'bulkEditableSelectField'],
+		'prepareMetaArgs'			=>	function(array $args, string $metaKey): array {
+			$terms = get_terms($args['termArgs'] ?? []);
+			$args['options'] = [
+				''	=>	__('— Select —', 'layered')
+			];
+
+			foreach ($terms as $term) {
+				$args['options'][$term->term_id] = $term->name;
+			}
+
+			return $args;
+		}
+	];
+
+	$fields['user'] = [
+		'name'						=>	__('Useer', 'layered'),
+		'type'						=>	'integer',
+		'renderValue'				=>	function($metaValue) {
+			return $metaValue ? get_user_by('id', $metaValue) : null;
+		},
+		'renderReadable'			=>	function($metaValue) {
+			return $metaValue ? $metaValue->display_name : '';
+		},
+		'renderEditableField'		=>	[MetaFields::class, 'editableSelectField'],
+		'renderEditableFieldBulk'	=>	[MetaFields::class, 'bulkEditableSelectField'],
+		'prepareMetaArgs'			=>	function(array $args, string $metaKey): array {
+			$users = get_users($args['userArgs'] ?? []);
+			$args['options'] = [
+				''	=>	$args['placeholder'] ?: __('— Select —', 'layered')
+			];
+
+			foreach ($users as $user) {
+				$args['options'][$user->ID] = $user->display_name;
+			}
+
+			return $args;
+		}
 	];
 
 	$fields['attachment'] = [
