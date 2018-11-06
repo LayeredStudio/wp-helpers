@@ -42,7 +42,7 @@ final class MetaFields {
 		// register meta field types
 		$this->fields = array_map([$this, 'prepareFieldTypes'], apply_filters('meta_field_types', []));
 
-		if (in_array($pagenow, ['term.php', 'edit-tags.php'])) {
+		if (in_array($pagenow, ['term.php', 'edit-tags.php', 'user-edit.php'])) {
 			wp_enqueue_media();
 		}
 
@@ -58,6 +58,12 @@ final class MetaFields {
 		// handle taxonomies
 		add_action('edited_term', [$this, 'saveTaxonomyMetaFields'], 100, 3);
 		add_action('created_term', [$this, 'saveTaxonomyMetaFields'], 100, 3);
+
+		// handle user
+		add_action('show_user_profile', [$this, 'addUserMetaBoxes']);
+		add_action('edit_user_profile', [$this, 'addUserMetaBoxes']);
+		add_action('personal_options_update', [$this, 'saveUserMetaFields']);
+		add_action('edit_user_profile_update', [$this, 'saveUserMetaFields']);
 
 	}
 
@@ -412,6 +418,60 @@ final class MetaFields {
 		}
 	}
 
+	public function addUserMetaBoxes(\WP_User $user) {
+		$metaFields = $this->metaFields['user'];
+		$metaFieldsByGroup = [];
+
+		wp_nonce_field('layeredUserMetaBoxes', 'layeredUserMetaBoxesNonce');
+
+		foreach ($metaFields as $metaKey => $metaField) {
+			if ($metaField['showInMetaBox']) {
+				if (!isset($metaFieldsByGroup[$metaField['group']])) {
+					$metaFieldsByGroup[$metaField['group']] = [];
+				}
+
+				$metaFieldsByGroup[$metaField['group']][$metaKey] = $metaField;
+			}
+		}
+
+		foreach ($metaFieldsByGroup as $groupName => $metaFields) {
+			?>
+			<h2><?php echo $groupName ?></h2>
+
+			<table class="form-table layered-meta-table">
+				<?php foreach ($metaFields as $metaKey => $metaField) :
+					$metaField['value'] = get_user_meta($user->ID, $metaKey, $metaField['single']);
+					?>
+
+					<tr class="field-<?php echo esc_attr($metaKey) ?> field-type-<?php echo esc_attr($metaField['advancedType']) ?> field-type-<?php echo esc_attr($metaField['single'] ? 'single' : 'multiple') ?>">
+						<th scope="row">
+							<label for="<?php echo esc_attr($metaKey) ?>"><?php echo $metaField['name'] ?></label>
+						</th>
+						<td>
+							<?php
+							if (!$metaField['single'] && $metaField['value'] && is_array($metaField['value'])) {
+								foreach ($metaField['value'] as $val) {
+									$this->renderField($metaKey, array_merge($metaField, ['value' => $val]));
+								}
+							}
+
+							$this->renderField($metaKey, $metaField)
+							?>
+
+							<?php if (!$metaField['single']) : ?>
+								<div class="clear">
+									<button class="button button-primary button-small js-layered-clone-field"><?php printf(__('Add %s'), $metaField['name']) ?></button>
+								</div>
+							<?php endif ?>
+						</td>
+					</tr>
+				<?php endforeach ?>
+			</table>
+			<?php
+		}
+
+	}
+
 
 
 	/* 4. Render fields */
@@ -533,6 +593,26 @@ final class MetaFields {
 		}
 	}
 
+	public function savePostBulkEdit() {
+
+		if (isset($_REQUEST['bulk_edit']) && $_REQUEST['post_type'] && $_REQUEST['action'] == 'edit') {
+			$metaFields = $this->metaFields['post'][$_REQUEST['post_type']] ?? [];
+
+			foreach ($metaFields as $metaKey => $metaField) {
+				if ($metaField['showInBulkEdit'] && isset($_REQUEST['_' . $metaKey]) && strlen($_REQUEST['_' . $metaKey]) && $_REQUEST['_' . $metaKey] != -1) {
+					foreach ($_REQUEST['post'] as $postId) {
+						$value = $_REQUEST['_' . $metaKey];
+						if ($metaField['sanitize_callback']) {
+							$value = call_user_func($metaField['sanitize_callback'], $value);
+						}
+						update_post_meta($postId, $metaKey, $value);
+					}
+				}
+			}
+		}
+
+	}
+
 	public function saveTaxonomyMetaFields(int $termId, int $termTaxonomyId, string $taxonomy) {
 		if ((defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) || !isset($_REQUEST['layeredTermMetaBoxesNonce']) || !wp_verify_nonce($_REQUEST['layeredTermMetaBoxesNonce'], 'layeredTermMetaBoxes')) return;
 
@@ -564,24 +644,35 @@ final class MetaFields {
 		}
 	}
 
-	public function savePostBulkEdit() {
+	public function saveUserMetaFields(int $userId) {
+		if (!current_user_can('edit_user', $userId) || !isset($_REQUEST['layeredUserMetaBoxesNonce']) || !wp_verify_nonce($_REQUEST['layeredUserMetaBoxesNonce'], 'layeredUserMetaBoxes')) return;
 
-		if (isset($_REQUEST['bulk_edit']) && $_REQUEST['post_type'] && $_REQUEST['action'] == 'edit') {
-			$metaFields = $this->metaFields['post'][$_REQUEST['post_type']] ?? [];
+		$metaFields = $this->metaFields['user'] ?? [];
 
-			foreach ($metaFields as $metaKey => $metaField) {
-				if ($metaField['showInBulkEdit'] && isset($_REQUEST['_' . $metaKey]) && strlen($_REQUEST['_' . $metaKey]) && $_REQUEST['_' . $metaKey] != -1) {
-					foreach ($_REQUEST['post'] as $postId) {
-						$value = $_REQUEST['_' . $metaKey];
+		foreach ($metaFields as $metaKey => $metaField) {
+			if ($metaField['showInMetaBox'] && isset($_POST[$metaKey])) {
+				if ($metaField['single']) {
+					$value = $_POST[$metaKey];
+					if ($metaField['sanitize_callback']) {
+						$value = call_user_func($metaField['sanitize_callback'], $value);
+					}
+					update_user_meta($userId, $metaKey, $value);
+				} else {
+					delete_user_meta($userId, $metaKey);
+
+					foreach ($_POST[$metaKey] as $i => $value) {
 						if ($metaField['sanitize_callback']) {
 							$value = call_user_func($metaField['sanitize_callback'], $value);
 						}
-						update_post_meta($postId, $metaKey, $value);
+						if (strlen($value)) {
+							add_user_meta($userId, $metaKey, $value);
+						}
 					}
 				}
+			} else {
+				delete_user_meta($userId, $metaKey);
 			}
 		}
-
 	}
 
 
