@@ -20,8 +20,9 @@ if (!function_exists('getVisitorCountryCode')) {
 	}
 }
 
-add_filter('visitor_country_code', 'layeredUserCountryCodeWooCommerce');
 add_filter('visitor_country_code', 'layeredUserCountryCodeHeaders');
+add_filter('visitor_country_code', 'layeredUserCountryCodeWooCommerce');
+add_filter('visitor_country_code', 'layeredUserCountryCodeWordfence');
 
 function layeredUserCountryCodeWooCommerce(string $countryCode = null): ?string {
 	if (empty($countryCode) && class_exists('WC_Geolocation')) {
@@ -46,3 +47,10 @@ function layeredUserCountryCodeHeaders(string $countryCode = null): ?string {
 	return $countryCode;
 }
 
+function layeredUserCountryCodeWordfence(string $countryCode = null): ?string {
+	if (empty($countryCode) && class_exists('wfUtils') && ($country = wfUtils::IP2Country(wfUtils::getIP())) && !in_array($country, ['A1', 'A2', 'EU', 'AP'])) {
+		return $country;
+	}
+
+	return $countryCode;
+}
