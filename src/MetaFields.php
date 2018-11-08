@@ -541,7 +541,7 @@ final class MetaFields {
 		echo $metaField['prefix'];
 		?>
 		<input id="<?php echo $metaKey ?>" type="<?php echo $metaField['advancedType'] ?>" name="_<?php echo $metaField['inputName'] ?>" placeholder="<?php echo __('No change') ?>" />
-		<?
+		<?php
 		echo $metaField['suffix'];
 	}
 
@@ -1015,6 +1015,11 @@ add_filter('meta_field_types', function(array $fields): array {
 		},
 		'renderReadable'	=>	function($metaValue) {
 			return $metaValue ? json_encode($metaValue, JSON_PRETTY_PRINT) : '';
+		},
+		'renderEditableField'	=>	function(array $metaField, string $metaKey) {
+			?>
+			<textarea id="<?php echo $metaKey ?>" name="<?php echo $metaField['inputName'] ?>" rows="7" cols="40" placeholder="<?php echo $metaField['placeholder'] ?>" class="large-text code"><?php echo $metaField['value'] ?></textarea>
+			<?php
 		}
 	];
 
