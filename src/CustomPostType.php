@@ -15,7 +15,7 @@ final class CustomPostType {
 		$this->postType = sanitize_key($postType);
 		$args['labels'] = $args['labels'] ?? [];
 
-		$args['labels']['singular_name'] = $args['labels']['singular_name'] ?? Inflector::humanize($this->postType);
+		$args['labels']['singular_name'] = $args['labels']['singular_name'] ?? Inflector::humanize($this->postType, ['_', '-']);
 		$args['labels']['name'] = $args['labels']['name'] ?? Inflector::pluralize($args['labels']['singular_name']);
 
 		$labels = wp_parse_args($args['labels'], [
@@ -45,7 +45,7 @@ final class CustomPostType {
 		$taxonomy = sanitize_key($taxonomy);
 		$args['labels'] = $args['labels'] ?? [];
 
-		$args['labels']['singular_name'] = $args['labels']['singular_name'] ?? Inflector::humanize($taxonomy);
+		$args['labels']['singular_name'] = $args['labels']['singular_name'] ?? Inflector::humanize($taxonomy, ['_', '-']);
 		$args['labels']['name'] = $args['labels']['name'] ?? Inflector::pluralize($args['labels']['singular_name']);
 
 		$labels = wp_parse_args($args['labels'], [
