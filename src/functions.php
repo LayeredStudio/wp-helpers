@@ -1,15 +1,26 @@
 <?php
-
 use Layered\Wp\MetaFields;
 
-if (!function_exists('mf')) {
 
-	function mf() {
+// Helper function - retrieve MetaFields instance
+
+if (!function_exists('mf')) {
+	function mf(): MetaFields {
 		return MetaFields::instance();
 	}
-
 }
 
+
+// Helper function - return the HTTP response in JSON format
+
+if (!function_exists('wp_remote_retrieve_json')) {
+	function wp_remote_retrieve_json(array $response) {
+		$headers = wp_remote_retrieve_headers($response);
+		$body = wp_remote_retrieve_body($response);
+
+		return $body && strpos($headers->offsetGet('content-type'), 'application/json') !== false ? json_decode($body, true) : null;
+	}
+}
 
 
 // Get visitor location - Country
