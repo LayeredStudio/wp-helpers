@@ -1,6 +1,8 @@
 <?php
 namespace Layered\Wp;
 
+use WP_User;
+
 final class MetaFields {
 
 	protected static $_instance = null;
@@ -418,7 +420,7 @@ final class MetaFields {
 		}
 	}
 
-	public function addUserMetaBoxes(\WP_User $user) {
+	public function addUserMetaBoxes(WP_User $user) {
 		$metaFields = $this->metaFields['user'];
 		$metaFieldsByGroup = [];
 
@@ -707,10 +709,11 @@ final class MetaFields {
 		return $this->getMeta('term', $metaField, $term->term_id, $metaKey);
 	}
 
-	public function getUserMeta(int $userId, string $metaKey) {
+	public function getUserMeta($user, string $metaKey) {
+		$userId = $user instanceof WP_User ? $user->ID : $user;
 		$metaField = $this->metaFields['user'][$metaKey];
 
-		return $this->getMeta('user', $metaField, $userId, $metaKey);
+		return $this->getMeta('user', $metaField, (int) $userId, $metaKey);
 	}
 
 
