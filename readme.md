@@ -15,14 +15,14 @@ WordPress Helpers
 #### Installation
 
 Add `layered/wp-helpers` as a require dependency in your `composer.json` file:
-``` bash
+```bash
 $ composer require layered/wp-helpers
 ```
 
 #### Register post type
 
 Example of adding a Post Type, create a `CustomPostType` instance with name as first argument:
-```
+```php
 CustomPostType::add('idea', [
 	'labels'	=>	[
 		'name'	=>	__('Ideas', 'my-theme-or-plugin')
@@ -40,7 +40,7 @@ CustomPostType::add('idea', [
 #### Meta Fields
 
 Meta Fields are custom fields that can be easily added to Posts, Terms, Comments and Users. They are registered with default WordPress flow, showing up as columns in list views, editable fields on edit pages, editable fields for Quick/Bulk edit screens and REST Api:
-```
+```php
 MetaFields::instance()->addPostMeta('second-heading', [
 	'name'				=>	'Second Heading',
 	'type'				=>	'text',
@@ -55,12 +55,12 @@ MetaFields::instance()->addPostMeta('second-heading', [
 
 #### Q
 
-Q adds support for asynchronous actions for WordPress plugins and themes. It has a simple API, only include the file and switch from `do_action()` to `queue_action()`. Processing is handled in background, making requests load qicker. Example:
-```
-// keeps the request hanging until actions is complete
+Q adds support for asynchronous actions in plugins and themes. Simple use, only include the file and switch from `do_action()` to `queue_action()`. Processing is handled in background, making web requests load qicker. Example:
+```php
+// keeps request hanging until action is complete
 do_action('resource_hungry_action', 'data', 4, 'action');
 
-// only starts the action and the rest of code is handled quicker
+// queues the action to be handled in background
 queue_action('resource_hungry_action', 'data', 4, 'action');
 ```
 
