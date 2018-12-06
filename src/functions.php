@@ -1,5 +1,7 @@
 <?php
+
 use Layered\Wp\MetaFields;
+use Layered\Wp\Q;
 
 
 // Helper function - retrieve MetaFields instance
@@ -7,6 +9,15 @@ use Layered\Wp\MetaFields;
 if (!function_exists('mf')) {
 	function mf(): MetaFields {
 		return MetaFields::instance();
+	}
+}
+
+
+// Helper function - Queue action using Layered\Q
+
+if (!function_exists('queue_action')) {
+	function queue_action(string $tag, ...$args) {
+		return Q::instance()->add($tag, $args);
 	}
 }
 
