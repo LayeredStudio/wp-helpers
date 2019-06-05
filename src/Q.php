@@ -103,7 +103,7 @@ class Q {
 					'id'		=>	$task->id
 				]);
 
-				call_user_func_array('do_action', array_merge([$task->tag], maybe_unserialize($task->data)));
+				do_action_ref_array($task->tag, maybe_unserialize($task->data));
 
 				$wpdb->update($this->dbTable, [
 					'status'		=>	'completed',
