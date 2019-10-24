@@ -514,7 +514,7 @@ final class MetaFields {
 	public static function editableTextField(array $metaField, string $metaKey) {
 		echo $metaField['prefix'];
 		?>
-		<input id="<?php echo $metaKey ?>" type="<?php echo $metaField['advancedType'] ?>" name="<?php echo $metaField['inputName'] ?>" placeholder="<?php echo $metaField['placeholder'] ?>" value="<?php echo $metaField['value'] ?>" class="<?php echo $metaField['class'] ?>" />
+		<input id="<?php echo $metaKey ?>" type="<?php echo $metaField['advancedType'] ?>" name="<?php echo $metaField['inputName'] ?>" placeholder="<?php echo esc_attr($metaField['placeholder']) ?>" value="<?php echo esc_textarea($metaField['value']) ?>" class="<?php echo esc_attr($metaField['class']) ?>" />
 		<?php
 		echo $metaField['suffix'];
 	}
@@ -850,6 +850,19 @@ add_filter('meta_field_types', function(array $fields): array {
 		'sanitize_callback'			=>	'esc_url_raw',
 		'renderEditableField'		=>	[MetaFields::class, 'editableTextField'],
 		'renderEditableFieldBulk'	=>	[MetaFields::class, 'bulkEditableTextField']
+	];
+
+	$fields['textarea'] = [
+		'name'						=>	__('Long text', 'layered'),
+		'type'						=>	'string',
+		'sanitize_callback'			=>	'sanitize_text_field',
+		'renderEditableField'		=>	function(array $metaField, string $metaKey) {
+			echo $metaField['prefix'];
+			?>
+			<textarea id="<?php echo $metaKey ?>" name="<?php echo $metaField['inputName'] ?>" placeholder="<?php echo esc_attr($metaField['placeholder']) ?>" class="<?php echo esc_attr($metaField['class']) ?>"><?php echo esc_textarea($metaField['value']) ?></textarea>
+			<?php
+			echo $metaField['suffix'];
+		}
 	];
 
 	$fields['checkbox'] = [
