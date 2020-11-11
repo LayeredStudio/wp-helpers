@@ -1,8 +1,7 @@
 <?php
 namespace Layered\Wp;
 
-final class CustomPostType {
-
+final class PostType {
 	protected $postType;
 	protected $args;
 	protected $taxonomies = [];
@@ -12,8 +11,6 @@ final class CustomPostType {
 	}
 
 	public function __construct(string $postType, array $args = []) {
-		_deprecated_function(__CLASS__, '1.10.0', 'Layered\Wp\PostType');
-
 		$this->postType = sanitize_key($postType);
 		$args['labels'] = $args['labels'] ?? [];
 
@@ -57,7 +54,7 @@ final class CustomPostType {
 			'all_items'			=>	sprintf(__('All %s', 'layered'), $args['labels']['name']),
 			'parent_item'		=>	sprintf(__('Parent %s', 'layered'), $args['labels']['singular_name']),
 			'parent_item_colon'	=>	sprintf(__('Parent %s:', 'layered'), $args['labels']['singular_name']),
-			'edit_item'			=>	sprintf(__('Edit %s', 'layered'),  $args['labels']['singular_name']),
+			'edit_item'			=>	sprintf(__('Edit %s', 'layered'), $args['labels']['singular_name']),
 			'update_item'		=>	sprintf(__('Update %s', 'layered'), $args['labels']['singular_name']),
 			'add_new_item'		=>	sprintf(__('Add New %s', 'layered'), $args['labels']['singular_name']),
 			'new_item_name'		=>	sprintf(__('New %s Name', 'layered'), $args['labels']['singular_name'])
@@ -89,100 +86,98 @@ final class CustomPostType {
 		return $this;
 	}
 
-  public function addColumns($columns) {
+	public function addColumns($columns) {
 
-    if (!is_array($columns)) {
-      $columns = [$columns];
-    }
+		if (!is_array($columns)) {
+			$columns = [$columns];
+		}
 
-    $newColumns = [];
+		$newColumns = [];
 
-    // process new columns
-    foreach ($columns as $column) {
+		// process new columns
+		foreach ($columns as $column) {
 
-      if (is_string($column)) {
-        
-        if ($column == 'author') {
-          $column = [
-            'id'    =>  'author',
-            'name'  =>  __('Author', 'layered')
-          ];
-        } elseif (isset($this->taxonomies[$column])) {
-          $column = [
-            'id'        =>  $column,
-            'sortable'  =>  true,
-            'name'      =>  $this->taxonomies[$column]['labels']['name'],
-            'value'     =>  function() use($column) {
-              global $post;
+			if (is_string($column)) {
 
-              $terms = get_the_terms($post->ID, $column);
+				if ($column == 'author') {
+					$column = [
+						'id'	=> 	'author',
+						'name'	=>	__('Author', 'layered')
+					];
+				} elseif (isset($this->taxonomies[$column])) {
+					$column = [
+						'id'		=>	$column,
+						'sortable'	=>	true,
+						'name'		=>	$this->taxonomies[$column]['labels']['name'],
+						'value'		=>	function() use($column) {
+							global $post;
 
-              if (is_wp_error($terms)) {
-                printf('<i>Error: %s</i>', $terms->get_error_message());
-              } elseif ($terms) {
+							$terms = get_the_terms($post->ID, $column);
 
-                $terms = array_map(function($term) use($column) {
+							if (is_wp_error($terms)) {
+								printf('<i>Error: %s</i>', $terms->get_error_message());
+							} elseif ($terms) {
 
-                  $name = $term->name;
+								$terms = array_map(function($term) use($column) {
+									$name = $term->name;
 
-                  if (function_exists('qtranxf_useCurrentLanguageIfNotFoundShowEmpty')) {
-                    $name = qtranxf_useCurrentLanguageIfNotFoundShowEmpty($term->name);
-                  }
+									if (function_exists('qtranxf_useCurrentLanguageIfNotFoundShowEmpty')) {
+										$name = qtranxf_useCurrentLanguageIfNotFoundShowEmpty($term->name);
+									}
 
-                  return '<a href="' . admin_url('edit.php?post_type=' . $this->postType . '&' . $column . '=' . $term->slug) . '">' . $name . '</a>';
-                }, $terms);
+									return '<a href="' . admin_url('edit.php?post_type=' . $this->postType . '&' . $column . '=' . $term->slug) . '">' . $name . '</a>';
+								}, $terms);
 
-                echo implode(', ', $terms);
-              }
-            }
-          ];
-        } else {
-          $column = [
-            'id'    =>  $column,
-            'name'  =>  $column,
-            'value' =>  function() {
-              printf('<i>%s</i>', __('undefined value', 'layered'));
-            }
-          ];
-        }
+								echo implode(', ', $terms);
+							}
+						}
+					];
+				} else {
+					$column = [
+						'id'	=>	$column,
+						'name'	=>	$column,
+						'value'	=>	function() {
+							printf('<i>%s</i>', __('undefined value', 'layered'));
+						}
+					];
+				}
 
-      }
+			}
 
-      $newColumns[$column['id']] = $column;
-    }
+			$newColumns[$column['id']] = $column;
+		}
 
-    add_filter('manage_edit-' . $this->postType . '_columns', function($columns) use($newColumns) {
+		add_filter('manage_edit-' . $this->postType . '_columns', function($columns) use($newColumns) {
 
-      foreach ($newColumns as $id => $column) {
-        //$columns[$id] = $column['name'];
+			foreach ($newColumns as $id => $column) {
+				//$columns[$id] = $column['name'];
 
-        if (!isset($column['position'])) {
-          $column['position'] = -1;
-        } elseif (is_string($column['position'])) {
-          $column['position'] = array_search('date', array_keys($columns));
-        }
+				if (!isset($column['position'])) {
+					$column['position'] = -1;
+				} elseif (is_string($column['position'])) {
+					$column['position'] = array_search('date', array_keys($columns));
+				}
 
-        $newCol = [];
-        $newCol[$id] = $column['name'];
+				$newCol = [];
+				$newCol[$id] = $column['name'];
 
-        $columns = array_merge(array_slice($columns, 0, $column['position']), $newCol, array_slice($columns, $column['position']));
+				$columns = array_merge(array_slice($columns, 0, $column['position']), $newCol, array_slice($columns, $column['position']));
 
-      }
+			}
 
-      return $columns;
-    });
+			return $columns;
+		});
 
-    add_action('manage_' . $this->postType . '_posts_custom_column', function($column) use($newColumns) {
-      global $post;
+		add_action('manage_' . $this->postType . '_posts_custom_column', function($column) use($newColumns) {
+			global $post;
 
-      if (isset($newColumns[$column]) && isset($newColumns[$column]['value'])) {
-        call_user_func($newColumns[$column]['value']);
-      }
+			if (isset($newColumns[$column]) && isset($newColumns[$column]['value'])) {
+				call_user_func($newColumns[$column]['value']);
+			}
+		});
 
-    });
-
-    return $this;
-  }
+		return $this;
+	}
 
 	function addMetaFields(array $metaFields): self {
 
