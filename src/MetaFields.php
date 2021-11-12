@@ -51,6 +51,7 @@ final class MetaFields {
 		// load assets
 		add_action('admin_head', [$this, 'adminHeadAssets']);
 		add_action('admin_footer', [$this, 'adminFooterAssets']);
+		add_action('admin_enqueue_scripts', [$this, 'adminAssets']);
 
 		// handle post types
 		add_action('add_meta_boxes', [$this, 'addPostMetaBoxes'], 100, 2);
@@ -813,9 +814,18 @@ final class MetaFields {
 				}
 			});
 
+			if ($.fn.select2) {
+				$('.js-layered-select2').select2();
+			}
+
 		});
 		</script>
 		<?php
+	}
+
+	public function adminAssets() {
+		wp_enqueue_style('select2', 'https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css', [], '4.0.13');
+		wp_enqueue_script('select2', 'https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.min.js', ['jquery'], '4.0.13');
 	}
 
 }
